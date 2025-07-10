@@ -1,0 +1,26 @@
+--- client/src/pages/AiAgents.tsx
++++ client/src/pages/AiAgents.tsx
+@@ -298,9 +298,9 @@
+               <TabsContent value="central-monitor" className="p-0 m-0 border-none">
+                 <div className="space-y-6">
+                   {/* Sentinel Guardian Header with Diamond Frame */}
+-                  <div className="relative rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 p-6 shadow-xl">
++                  <div className="relative rounded-lg bg-gradient-to-r from-slate-700 to-slate-600 p-6 shadow-xl">
+                     {/* Grid pattern overlay */}
+                     <div className="absolute inset-0 bg-grid-pattern opacity-5 rounded-lg"></div>
+-                    <div className="absolute inset-0 border border-slate-700/70 rounded-lg"></div>
++                    <div className="absolute inset-0 border border-slate-500/70 rounded-lg"></div>
+                     
+                     <div className="relative z-10">
+@@ -368,9 +368,9 @@
+               <TabsContent value="csr" className="p-0 m-0 border-none">
+                 <div className="space-y-6">
+                   {/* Report Architect Header with Document-style Frame */}
+-                  <div className="relative rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 p-6 shadow-xl">
++                  <div className="relative rounded-lg bg-gradient-to-r from-slate-700 to-slate-600 p-6 shadow-xl">
+                     {/* Grid pattern overlay */}
+                     <div className="absolute inset-0 bg-grid-pattern opacity-5 rounded-lg"></div>
+-                    <div className="absolute inset-0 border border-slate-700/70 rounded-lg"></div>
++                    <div className="absolute inset-0 border border-slate-500/70 rounded-lg"></div>
+                     
+                     <div className="relative z-10">

@@ -1,0 +1,30 @@
+                <CardFooter className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCheckFrequency('30s');
+                      setAutoCloseEnabled(true);
+                      setAutoCheckTriggers({
+                        onSchedule: true,
+                        onQueryResponse: true,
+                        onDataRefresh: true
+                      });
+                      setWeeklyReviewEnabled(true);
+                      setSettingsChanged(true);
+                    }}
+                  >
+                    Reset to Defaults
+                  </Button>
+                  <Button 
+                    onClick={saveSettings}
+                    disabled={!settingsChanged}
+                    className={settingsChanged ? "bg-blue-600 hover:bg-blue-700" : ""}
+                  >
+                    {settingsSaved && !settingsChanged ? (
+                      <div className="flex items-center">
+                        <Check className="mr-2 h-4 w-4" />
+                        Saved
+                      </div>
+                    ) : "Save Settings"}
+                  </Button>
+                </CardFooter>

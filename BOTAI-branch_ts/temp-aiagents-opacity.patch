@@ -1,0 +1,11 @@
+--- client/src/pages/AiAgents.tsx
++++ client/src/pages/AiAgents.tsx
+@@ -232,7 +232,7 @@
+                   <div className="relative rounded-lg bg-gradient-to-r from-indigo-600 to-blue-700 p-6 shadow-lg">
+                     {/* Grid pattern overlay */}
+                     <div className="absolute inset-0 bg-grid-pattern opacity-5 rounded-lg"></div>
+-                    <div className="absolute inset-0 bg-black opacity-30 rounded-lg"></div>
++                    <div className="absolute inset-0 bg-black opacity-20 rounded-lg"></div>
+                     
+                     <div className="relative z-10">
+                       <div className="flex items-center justify-between">

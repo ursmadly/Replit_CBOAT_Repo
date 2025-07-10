@@ -1,0 +1,438 @@
+          {/* Issues Tab */}
+          <TabsContent value="issues" className="flex-1 flex flex-col space-y-4">
+            <Card className="w-full">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Data Quality Issues</CardTitle>
+                    <CardDescription>View and manage identified data quality issues</CardDescription>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                      <SelectTrigger className="w-[180px] h-8 text-xs">
+                        <SelectValue placeholder="Select domain" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Domains</SelectItem>
+                        <SelectItem value="DM">DM (Demographics)</SelectItem>
+                        <SelectItem value="VS">VS (Vital Signs)</SelectItem>
+                        <SelectItem value="LB">LB (Laboratory)</SelectItem>
+                        <SelectItem value="CM">CM (Concomitant Medications)</SelectItem>
+                        <SelectItem value="AE">AE (Adverse Events)</SelectItem>
+                        <SelectItem value="EG">EG (ECG)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select value={"status"} onValueChange={(value) => console.log(`Group by ${value}`)}>
+                      <SelectTrigger className="w-[180px] h-8 text-xs">
+                        <SelectValue placeholder="Group by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="status">Group by Status</SelectItem>
+                        <SelectItem value="type">Group by Type</SelectItem>
+                        <SelectItem value="domain">Group by Domain</SelectItem>
+                        <SelectItem value="severity">Group by Severity</SelectItem>
+                        <SelectItem value="sla">Group by SLA Status</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <Button 
+                    variant={selectedStatus === 'all' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setSelectedStatus('all')}
+                    className="text-xs h-8"
+                  >
+                    All ({issueStatusCounts.total})
+                  </Button>
+                  <Button 
+                    variant={selectedStatus === 'detected' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setSelectedStatus('detected')}
+                    className="text-xs h-8"
+                  >
+                    Detected ({issueStatusCounts.detected})
+                  </Button>
+                  <Button 
+                    variant={selectedStatus === 'reviewing' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setSelectedStatus('reviewing')}
+                    className="text-xs h-8"
+                  >
+                    Reviewing ({issueStatusCounts.reviewing})
+                  </Button>
+                  <Button 
+                    variant={selectedStatus === 'resolving' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setSelectedStatus('resolving')}
+                    className="text-xs h-8"
+                  >
+                    Resolving ({issueStatusCounts.resolving})
+                  </Button>
+                  <Button 
+                    variant={selectedStatus === 'resolved' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setSelectedStatus('resolved')}
+                    className="text-xs h-8"
+                  >
+                    Resolved ({issueStatusCounts.resolved})
+                  </Button>
+                </div>
+                
+                <div className="flex flex-wrap gap-1 mt-2">
+                  <Button 
+                    variant={selectedIssueTypes.includes('all') ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => toggleIssueType('all')}
+                    className="text-xs h-7"
+                  >
+                    All Types
+                  </Button>
+                  <Button 
+                    variant={selectedIssueTypes.includes('missing_data') ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => toggleIssueType('missing_data')}
+                    className="text-xs h-7"
+                  >
+                    Missing Data ({issueTypeCounts.missing_data})
+                  </Button>
+                  <Button 
+                    variant={selectedIssueTypes.includes('inconsistent_data') ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => toggleIssueType('inconsistent_data')}
+                    className="text-xs h-7"
+                  >
+                    Inconsistent Data ({issueTypeCounts.inconsistent_data})
+                  </Button>
+                  <Button 
+                    variant={selectedIssueTypes.includes('out_of_range') ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => toggleIssueType('out_of_range')}
+                    className="text-xs h-7"
+                  >
+                    Out of Range ({issueTypeCounts.out_of_range})
+                  </Button>
+                  <Button 
+                    variant={selectedIssueTypes.includes('format_error') ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => toggleIssueType('format_error')}
+                    className="text-xs h-7"
+                  >
+                    Format Error ({issueTypeCounts.format_error})
+                  </Button>
+                  <Button 
+                    variant={selectedIssueTypes.includes('duplicate') ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => toggleIssueType('duplicate')}
+                    className="text-xs h-7"
+                  >
+                    Duplicate ({issueTypeCounts.duplicate})
+                  </Button>
+                  <Button 
+                    variant={selectedIssueTypes.includes('specification_violation') ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => toggleIssueType('specification_violation')}
+                    className="text-xs h-7"
+                  >
+                    Spec Violation ({issueTypeCounts.specification_violation})
+                  </Button>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pb-2">
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="hidden md:table-cell">Description</TableHead>
+                        <TableHead>Domain</TableHead>
+                        <TableHead className="hidden md:table-cell">Status</TableHead>
+                        <TableHead className="hidden md:table-cell">Severity</TableHead>
+                        <TableHead className="hidden md:table-cell">SLA Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredIssues
+                        .slice((issuesCurrentPage - 1) * issuesPageSize, issuesCurrentPage * issuesPageSize)
+                        .map(issue => {
+                          // Calculate SLA status - due date is 2 weeks from creation
+                          const creationDate = new Date(issue.created);
+                          const dueDate = new Date(creationDate);
+                          dueDate.setDate(creationDate.getDate() + 14); // 2 weeks SLA
+                          const now = new Date();
+                          const isOverdue = now > dueDate && issue.status !== 'resolved';
+                          const daysDiff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                          
+                          return (
+                            <TableRow key={issue.id}>
+                              <TableCell className="font-medium">{issue.id}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {issue.type === 'missing_data' && <div className="w-2 h-2 rounded-full bg-red-500" />}
+                                  {issue.type === 'inconsistent_data' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                                  {issue.type === 'out_of_range' && <div className="w-2 h-2 rounded-full bg-orange-500" />}
+                                  {issue.type === 'format_error' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                                  {issue.type === 'duplicate' && <div className="w-2 h-2 rounded-full bg-purple-500" />}
+                                  {issue.type === 'specification_violation' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
+                                  <span className="text-xs truncate">
+                                    {issue.title}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <div className="text-xs max-w-[280px] truncate">{issue.description}</div>
+                              </TableCell>
+                              <TableCell>{issue.domain}</TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <Badge variant={
+                                  issue.status === 'detected' ? "outline" :
+                                  issue.status === 'reviewing' ? "secondary" :
+                                  issue.status === 'resolving' ? "default" :
+                                  issue.status === 'resolved' ? "outline" : "outline"
+                                } className="text-xs">
+                                  {issue.status.charAt(0).toUpperCase() + issue.status.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <Badge variant={
+                                  issue.severity === 'critical' ? "destructive" :
+                                  issue.severity === 'high' ? "destructive" :
+                                  issue.severity === 'medium' ? "default" : "outline"
+                                } className="text-xs">
+                                  {issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                {issue.status === 'resolved' ? (
+                                  <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
+                                    Completed
+                                  </Badge>
+                                ) : isOverdue ? (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Overdue
+                                  </Badge>
+                                ) : daysDiff <= 2 ? (
+                                  <Badge variant="outline" className="bg-orange-100 text-orange-800 text-xs">
+                                    Due soon ({daysDiff}d)
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-blue-100 text-blue-800 text-xs">
+                                    {daysDiff}d remaining
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <Filter className="h-4 w-4" />
+                                      <span className="sr-only">Actions</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>View Details</DropdownMenuItem>
+                                    <DropdownMenuItem>Create Task</DropdownMenuItem>
+                                    <DropdownMenuItem>Change Status</DropdownMenuItem>
+                                    <DropdownMenuItem>View Source Data</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+              
+              <CardFooter>
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Rows per page:</span>
+                    <Select value={issuesPageSize.toString()} onValueChange={(value) => setIssuesPageSize(parseInt(value))}>
+                      <SelectTrigger className="w-[70px] h-8">
+                        <SelectValue placeholder="10" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setIssuesCurrentPage(prev => Math.max(prev - 1, 1))}
+                          className={issuesCurrentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                      {[...Array(Math.min(3, Math.ceil(filteredIssues.length / issuesPageSize)))].map((_, i) => {
+                        const page = i + 1;
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink 
+                              onClick={() => setIssuesCurrentPage(page)}
+                              isActive={issuesCurrentPage === page}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      })}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setIssuesCurrentPage(prev => 
+                            prev < Math.ceil(filteredIssues.length / issuesPageSize) ? prev + 1 : prev
+                          )}
+                          className={
+                            issuesCurrentPage >= Math.ceil(filteredIssues.length / issuesPageSize) 
+                              ? "pointer-events-none opacity-50" 
+                              : ""
+                          }
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              </CardFooter>
+            </Card>
+            
+            {/* Horizontal summary section below table */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Issues by Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-gray-200 mr-2"></div>
+                      <span className="text-xs">Detected</span>
+                    </div>
+                    <span className="text-xs font-semibold">{issueStatusCounts.detected}</span>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-blue-200 mr-2"></div>
+                      <span className="text-xs">Reviewing</span>
+                    </div>
+                    <span className="text-xs font-semibold">{issueStatusCounts.reviewing}</span>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-blue-400 mr-2"></div>
+                      <span className="text-xs">Resolving</span>
+                    </div>
+                    <span className="text-xs font-semibold">{issueStatusCounts.resolving}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-green-200 mr-2"></div>
+                      <span className="text-xs">Resolved</span>
+                    </div>
+                    <span className="text-xs font-semibold">{issueStatusCounts.resolved}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Issues by SLA</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* SLA Status Summary */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Badge variant="destructive" className="h-5 mr-2">Overdue</Badge>
+                        <span className="text-xs">Past SLA date</span>
+                      </div>
+                      <span className="text-xs font-semibold">
+                        {filteredIssues.filter(issue => {
+                          const creationDate = new Date(issue.created);
+                          const dueDate = new Date(creationDate);
+                          dueDate.setDate(creationDate.getDate() + 14);
+                          return new Date() > dueDate && issue.status !== 'resolved';
+                        }).length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Badge variant="outline" className="bg-orange-100 text-orange-800 h-5 mr-2">Due Soon</Badge>
+                        <span className="text-xs">Due in 2 days or less</span>
+                      </div>
+                      <span className="text-xs font-semibold">
+                        {filteredIssues.filter(issue => {
+                          const creationDate = new Date(issue.created);
+                          const dueDate = new Date(creationDate);
+                          dueDate.setDate(creationDate.getDate() + 14);
+                          const now = new Date();
+                          const daysDiff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                          return daysDiff <= 2 && daysDiff > 0 && issue.status !== 'resolved';
+                        }).length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800 h-5 mr-2">On Track</Badge>
+                        <span className="text-xs">Due in more than 2 days</span>
+                      </div>
+                      <span className="text-xs font-semibold">
+                        {filteredIssues.filter(issue => {
+                          const creationDate = new Date(issue.created);
+                          const dueDate = new Date(creationDate);
+                          dueDate.setDate(creationDate.getDate() + 14);
+                          const now = new Date();
+                          const daysDiff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                          return daysDiff > 2 && issue.status !== 'resolved';
+                        }).length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Badge variant="outline" className="bg-green-100 text-green-800 h-5 mr-2">Completed</Badge>
+                        <span className="text-xs">Issues resolved</span>
+                      </div>
+                      <span className="text-xs font-semibold">
+                        {filteredIssues.filter(issue => issue.status === 'resolved').length}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Issues by Domain</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Domain Summary */}
+                  <div className="space-y-2">
+                    {['DM', 'VS', 'LB', 'CM', 'AE', 'EG'].map(domain => {
+                      const count = filteredIssues.filter(issue => issue.domain === domain).length;
+                      const percentage = (count / filteredIssues.length) * 100 || 0;
+                      
+                      return (
+                        <div className="flex items-center" key={domain}>
+                          <div className="text-xs flex-1">{domain}</div>
+                          <div className="text-xs text-right mr-2">{count}</div>
+                          <div className="w-24 h-2 bg-gray-100">
+                            <div className="h-full bg-blue-500" style={{ width: `${percentage}%` }}></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
