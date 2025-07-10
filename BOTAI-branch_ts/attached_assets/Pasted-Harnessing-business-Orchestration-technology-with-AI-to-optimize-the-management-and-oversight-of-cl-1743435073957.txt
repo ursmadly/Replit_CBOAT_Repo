@@ -1,0 +1,79 @@
+Harnessing business Orchestration  technology with AI to optimize the management and oversight of clinical trials involves the integration of various profiles and dimensions for comprehensive oversight.
+
+Integrated profiles include: Risk Profile, Quality Profile, Compliance Profile, Safety Profile, Vendor Profile, Financial Profile, Resources Profile
+These profiles encompass dimensions such as: Portfolio, Program, Trial, Country, Site, Patient, Supply Chain, Vendor (Service Provider), Budget Planning and Utilization, User Allocations and Assignments
+Key drivers include: Integrated Data Review and automated business orchestration with HITL (Human in the loop) to analyse leading and lagging indicators, quality and compliance risks, protocol deviation, risks. 
+Utilize data sources such as: EDC, CTMS, iRT, LIMS, Supply Chain, Data Lake (Patient and Operational)
+Considers modularity criteria: Inhouse, Completely outsourced, Partly Outsourced Trials and Service Provider(s)
+Benchmarking profiles involve: Cycle Times, Risk, Quality, and Experience of Clinical Services Provided, Recruitment Rate and others
+
+Requirements and solution:
+
+The above use case is more of Risk-Based Quality Management (RBQM) is needed in clinical trials to improve efficiency, reduce costs, and ensure patient safety by identifying and mitigating risks early in the process. 
+
+Why is RBQM needed?
+•	Improves Patient Safety – Ensures that issues like adverse events or protocol deviations are identified early.
+•	Enhances Data Quality – Focuses on critical data points rather than verifying all data, improving efficiency.
+•	Reduces Costs – Cuts unnecessary site visits and manual data verification, saving time and money.
+•	Meets Regulatory Expectations – Aligns with FDA and ICH E6 (R2) guidelines, which emphasize risk-based approaches.
+•	Optimizes Resources – Allows teams to focus on high-risk sites, critical endpoints, and key safety measures.
+
+Examples of RBQM based on the above client use case:
+
+Risk Profile:
+
+Example 1: Identifying Fraudulent Data Entry
+A clinical trial has 50 sites worldwide. One site is consistently reporting patient data without variation (e.g., all patients have identical vital signs). Using RBQM, statistical algorithms flag this site as an outlier. A targeted review confirms that data was fabricated, and appropriate action is taken, preventing unreliable data from impacting trial outcomes.
+This is achieved through a reporting solution that’s calculates the pattern of the data entry by site using AI approach and create detection that needs to be investigated through a digital workflow.
+Example 2: Detecting Protocol Deviations
+A trial for a new diabetes drug requires fasting blood sugar levels to be collected in the morning. However, RBQM detects that one site's data often falls outside the expected time range. This prompts an investigation, revealing that some patients were tested in the afternoon. The issue is corrected, ensuring protocol adherence.
+Example 3: Reducing Unnecessary On-Site Monitoring
+Traditionally, a sponsor conducts monthly on-site visits to verify all source data manually. With RBQM, centralized monitoring tools detect which sites have minimal discrepancies and which have more frequent errors. Instead of visiting all sites equally, the sponsor focuses efforts on high-risk sites, reducing travel costs and improving efficiency.
+Example 3:  Safety Monitoring
+After a patient is given a trial drug at V1 the lab results indicating high sugar levels are reported for majority of the patients across the sites, generally this is monitored by medical team based on the 
+System should have menu for clicking on Risk profile menu option and below signals detection should be seen with actions of creating tasks in tree structure for review and investigation further.
+ 
+Detection ID	Protocol	Site ID	PI name	Data reference	Observation	Created Date	Created By	Due By	Assignment	Notified	Status
+ST_Risk_001	Pro001	123	VB	Screen failure report(Hyper Link)	Site has same screen failure for 20 patients	10-Mar-25	System	15-Mar-25	CD	Trial Manger, Safety Monitor	Initiated
+
+Key feature of the System:
+1.	Risk Detection & Task Creation
+•	Should be able to parse the data of the sources EDC, CTMS, iRT, LIMS, Supply Chain, Data Lake (Patient and Operational)
+•	Based on the data System should be able to identify Risk Detection automatically AI/ML models analyse trial data and identify risks (e.g., protocol deviations, data inconsistencies, patient safety concerns).
+•	Task Generation: Based on detected risks, tasks are automatically created and should have an option to override and manual creation of the tasks
+•	Should be able to Task Categorize the Tasks into Critical, High, Medium, Low priority
+•	Assign SLA and calculate the due date and overdue calculations
+2.	Task Assignment & Workflow Management
+•	Persona-Based Assignment of tasks are routed to relevant study team members (e.g., CRAs, Data Managers, Safety Teams, Investigators).
+•	Task Dependencies & Escalations: If a task remains unresolved beyond SLA, it is escalated to higher authorities.
+•	Task can be routed for review and approval before proceed with further investigation
+•	Delegation of the tasks should be an option for a specified period of time.
+3.	Alerts & Notifications
+•	Email & In-App Notifications for new signal detection and  tasks, pending approvals, escalations, and deadlines.
+•	SLA Reminders: Automated reminders based on urgency and due dates.
+•	Option for users to configure Custom Alerts and notifications.
+4.	Dashboards for Study Teams
+•	Role-Based Dashboards:
+•	Study Managers: Overview of all ongoing issues, risk trends, and resolution statuses.
+•	CRAs & Site Monitors: Site-specific task completion rates and protocol adherence.
+•	Data Managers: Data discrepancies, missing/inconsistent data alerts.
+•	Safety Teams: Adverse event tracking, safety risk resolution progress.
+
+
+5.	Reports & Insights
+•	Risk Trends & Task Analysis
+•	Monthly and real-time risk heatmaps
+•	Task resolution timelines & SLA adherence
+•	Compliance & Audit Reports
+•	Automated logs for audits
+6.	Integration capabilities (By directional)
+•	EDC, CTMS, iRT, LIMS, Supply Chain, Data Lake (Patient and Operational) …
+•	Configurable framework of API keys/sets/S3
+7.	Configurable framework to capture the digitized Protocol review objective and associated Risk categorization assessment and threshold limits
+a.	EX: 10% percent of patients reported AEs after 1st dosage should be considered as safety risk to investigated
+b.	Only one site reported higher AEs which is 70% then investigation is needed at the site for the assessment of the enrolment and screening.
+8.	Profile creation for Risk Profile, Quality Profile, Compliance Profile, Safety Profile, Vendor Profile, Financial Profile, Resources Profile, this should be done based on the Signal detection and task closure assessments.
+a.	Ex: A study that’s managed by ABX CRO and has lot of issues being reported across sites should mark the CRO with the low rating
+b.	A LAB which is not completing the testing on time and have lot of missing tests should mark the lab as low and vice versa of good performing lab should be marked as High
+c.	CRA studies who has lot of issues with in specific TA should be marked as low preferred for the TA..and the same is applicable for the PI, Sites…
+
