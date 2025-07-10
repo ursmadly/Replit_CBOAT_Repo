@@ -1,0 +1,517 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { 
+  Table, 
+  TableBody, 
+  TableCaption, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  Search,
+  Filter,
+  Download,
+  Copy,
+  FileText,
+  FileSpreadsheet,
+  Check,
+  Layout,
+  LayoutGrid,
+  MenuSquare,
+  Info
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportToCSV, exportToExcel } from "@/lib/utils/exportUtils";
+import { Input } from "@/components/ui/input";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DatasetMetadata } from "./DatasetMetadata";
+import { generateMockDomainData } from "./DomainDataUtils";
+
+// Define the domain data structure
+interface DomainDataRecord {
+  id: number;
+  trialId: number;
+  domain: string;
+  source: string;
+  recordId: string;
+  recordData: string;
+  importedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DomainDataResponse {
+  data: DomainDataRecord[];
+}
+
+interface RawDataBrowserProps {
+  studyId: number;
+  domain: string;
+  vendor: string;
+  dataSource: string;
+}
+
+export function RawDataBrowser({ studyId, domain, vendor, dataSource }: RawDataBrowserProps) {
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<"data" | "metadata">("data");
+  
+  // State for tracking if we're using mock data
+  const [usingMockData, setUsingMockData] = useState(false);
+  
+  // Fetch domain data from the API
+  const { data: domainDataResult, isLoading, isError } = useQuery<DomainDataResponse>({
+    queryKey: ['/api/domain-data', studyId, domain, dataSource],
+    queryFn: async () => {
+      try {
+        console.log(`Fetching data for trial ${studyId}, domain ${domain}, source ${dataSource}`);
+        const response = await fetch(`/api/domain-data?trialId=${studyId}&domain=${domain}&source=${encodeURIComponent(dataSource)}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API error response:', errorText);
+          
+          // For 404 errors (domain not found), we'll use mock data instead of throwing an error
+          if (response.status === 404) {
+            setUsingMockData(true);
+            
+            // Generate mock data for this domain
+            const mockData = generateMockDomainData(domain, studyId, dataSource);
+            return { success: true, data: mockData };
+          }
+          
+          throw new Error(`Failed to fetch domain data: ${response.status} ${response.statusText}`);
+        }
+        
+        setUsingMockData(false);
+        const data = await response.json();
+        console.log('Received domain data:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching domain data:', error);
+        throw error;
+      }
+    },
+    retry: 1,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
+  
+  // Use the API data
+  const domainData = domainDataResult?.data || [];
+  
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col space-y-4">
+        <div className="flex justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[250px]" />
+            <Skeleton className="h-4 w-[200px]" />
+          </div>
+          <Skeleton className="h-10 w-[250px]" />
+        </div>
+        <Skeleton className="h-[300px] w-full rounded-lg" />
+      </div>
+    );
+  }
+  
+  // Show error state - only for non-404 errors 
+  if (isError && !usingMockData) {
+    return (
+      <div className="border border-red-200 bg-red-50 p-4 rounded-lg text-red-800">
+        <h3 className="text-lg font-semibold mb-2">Error Loading Data</h3>
+        <p>Failed to load domain data. Please try again later or contact support.</p>
+        <Button 
+          variant="outline"
+          className="mt-4"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+  
+  // Transform the data from JSON strings to objects if needed
+  const parsedDomainData = domainData.map((item: DomainDataRecord) => {
+    if (item.recordData && typeof item.recordData === 'string') {
+      try {
+        // Parse the JSON string into an object
+        const recordData = JSON.parse(item.recordData);
+        
+        // Return the parsed record with metadata
+        return {
+          id: item.id,
+          recordId: item.recordId,
+          importedAt: new Date(item.importedAt).toLocaleString(),
+          ...recordData
+        };
+      } catch (e) {
+        console.error(`Error parsing record data for record ${item.id}:`, e);
+        return {
+          id: item.id,
+          recordId: item.recordId,
+          importedAt: new Date(item.importedAt).toLocaleString(),
+          error: "Failed to parse record data",
+          rawData: item.recordData
+        };
+      }
+    }
+    // If already an object with parsedData property (from backend)
+    if (item.hasOwnProperty('parsedData')) {
+      return {
+        id: item.id,
+        recordId: item.recordId,
+        importedAt: new Date(item.importedAt).toLocaleString(),
+        ...(item as any).parsedData
+      };
+    }
+    // Fallback
+    return item;
+  });
+  
+  // Filter data based on search query and active filters
+  const filteredData = parsedDomainData.filter((item: Record<string, any>) => {
+    // Search query filter
+    const matchesSearch = Object.values(item).some(
+      (value) => 
+        value && 
+        value.toString().toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    // Active filters
+    const matchesFilters = Object.entries(activeFilters).every(([key, value]) => {
+      if (!value) return true; // Skip empty filters
+      return item[key] && item[key].toString().toLowerCase().includes(value.toLowerCase());
+    });
+    
+    return matchesSearch && matchesFilters;
+  });
+  
+  // Sort data if sort field is set
+  const sortedData = sortField 
+    ? [...filteredData].sort((a, b) => {
+        const aValue = a[sortField];
+        const bValue = b[sortField];
+        
+        if (aValue === bValue) return 0;
+        
+        // Handle different data types
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        
+        // Default string comparison
+        const aString = String(aValue).toLowerCase();
+        const bString = String(bValue).toLowerCase();
+        
+        return sortDirection === 'asc' 
+          ? aString.localeCompare(bString) 
+          : bString.localeCompare(aString);
+      })
+    : filteredData;
+  
+  // Get columns dynamically from the first data item
+  const columns = sortedData.length > 0 
+    ? Object.keys(sortedData[0]).filter(key => key !== 'id') 
+    : [];
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Data Source: {dataSource}</span>
+          <span className="text-sm font-medium">{domain} Domain</span>
+          <span className="text-sm font-medium">{sortedData.length} Records</span>
+          {usingMockData && (
+            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
+              Simulated Data
+            </span>
+          )}
+        </div>
+        
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex items-center border rounded-md overflow-hidden p-0.5 bg-gray-50">
+            <Button
+              variant={activeTab === "metadata" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setActiveTab("metadata")}
+              className="flex items-center gap-1 rounded-r-none"
+            >
+              <Info className="h-4 w-4" />
+              <span>Metadata</span>
+            </Button>
+            <Button
+              variant={activeTab === "data" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setActiveTab("data")}
+              className="flex items-center gap-1 rounded-l-none"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span>Data</span>
+            </Button>
+          </div>
+          
+          {activeTab === "data" && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="relative w-full sm:w-64">
+                <Input
+                  placeholder="Search records..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+                <span className="absolute left-2.5 top-2.5 text-gray-400">
+                  <Search className="h-4 w-4" />
+                </span>
+              </div>
+              
+              <Button
+                variant={showFilters ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-4 w-4" />
+                <span>Filter</span>
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => exportToCSV(sortedData, `${domain}_Domain_Data`)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span>Export to CSV</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportToExcel(sortedData, `${domain}_Domain_Data`)}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    <span>Export to Excel</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const dataStr = JSON.stringify(sortedData, null, 2);
+                  navigator.clipboard.writeText(dataStr)
+                    .then(() => {
+                      toast({
+                        description: "Data copied to clipboard!",
+                        variant: "default",
+                        duration: 3000
+                      });
+                    })
+                    .catch(err => {
+                      console.error('Failed to copy data: ', err);
+                      toast({
+                        title: "Copy failed",
+                        description: "Failed to copy data to clipboard. Please try again.",
+                        variant: "destructive",
+                        duration: 5000
+                      });
+                    });
+                }}
+                className="flex items-center gap-1"
+              >
+                <Copy className="h-4 w-4" />
+                <span>Copy</span>
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6">
+        {activeTab === "metadata" && (
+          <div className="border rounded-lg overflow-hidden lg:col-span-1">
+            <DatasetMetadata
+              studyId={studyId}
+              domain={domain}
+              vendor={vendor}
+              dataSource={dataSource}
+            />
+          </div>
+        )}
+        
+        <div className={activeTab === "metadata" ? "lg:col-span-1" : "lg:col-span-2"}>
+          {activeTab === "data" && showFilters && (
+            <div className="p-4 border rounded-md bg-gray-50 mb-4">
+              <h3 className="text-sm font-medium mb-3">Filter Records</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {columns.slice(0, 6).map((column) => (
+                  <div key={column} className="space-y-2">
+                    <label htmlFor={`filter-${column}`} className="text-sm font-medium">
+                      {column}
+                    </label>
+                    <Input
+                      id={`filter-${column}`}
+                      placeholder={`Filter by ${column}...`}
+                      value={activeFilters[column] || ''}
+                      onChange={(e) => {
+                        setActiveFilters({
+                          ...activeFilters,
+                          [column]: e.target.value
+                        });
+                      }}
+                      className="h-8"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end mt-4 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setActiveFilters({});
+                    toast({
+                      description: "All filters cleared",
+                      variant: "default",
+                      duration: 2000
+                    });
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === "data" && (
+            <div className="border rounded-md overflow-auto">
+              <Table>
+                <TableCaption>Raw Data for {domain} Domain</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    {columns.map((column) => (
+                      <TableHead 
+                        key={column}
+                        className={`cursor-pointer ${sortField === column ? 'bg-blue-50' : ''}`}
+                        onClick={() => {
+                          if (sortField === column) {
+                            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortField(column);
+                            setSortDirection('asc');
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                          {column}
+                          {sortField === column && (
+                            <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedData.map((row: Record<string, any>, idx: number) => (
+                    <TableRow key={idx}>
+                      {columns.map((column: string) => (
+                        <TableCell key={column}>
+                          {typeof row[column] === 'object' && row[column] !== null ? 
+                            JSON.stringify(row[column]) : 
+                            String(row[column])}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          
+          {activeTab === "metadata" && (
+            <div className="border rounded-md p-4">
+              <h3 className="text-lg font-medium mb-4 text-blue-700">
+                {domain} Domain - Data Overview
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Record Count</div>
+                    <div className="text-xl font-medium">{sortedData.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Variable Count</div>
+                    <div className="text-xl font-medium">{columns.length}</div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-muted-foreground">Sample Data</div>
+                  {sortedData.length > 0 ? (
+                    <div className="border rounded-md overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {columns.slice(0, 5).map((column) => (
+                              <TableHead key={column}>{column}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedData.slice(0, 3).map((row: Record<string, any>, idx: number) => (
+                            <TableRow key={idx}>
+                              {columns.slice(0, 5).map((column: string) => (
+                                <TableCell key={column}>
+                                  {typeof row[column] === 'object' && row[column] !== null ? 
+                                    JSON.stringify(row[column]) : 
+                                    String(row[column])}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No data available for this domain.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
