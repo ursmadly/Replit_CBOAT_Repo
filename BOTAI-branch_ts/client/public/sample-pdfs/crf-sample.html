@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRF Completion Guidelines</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        h1 {
+            color: #1a5276;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2874a6;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #2e86c1;
+        }
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .footer {
+            margin-top: 50px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+        }
+        .note {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="header">
+            <h1>CRF Completion Guidelines</h1>
+            <p>Protocol: PRO001</p>
+            <p>Version: 1.2</p>
+            <p>Date: March 10, 2025</p>
+        </div>
+
+        <h2>1. Introduction</h2>
+        <p>This document provides guidance for the accurate and complete documentation of clinical data in the Case Report Forms (CRFs) for the PRO001 clinical trial. Proper completion of CRFs is essential for ensuring data quality, integrity, and compliance with regulatory requirements.</p>
+
+        <div class="note">
+            <strong>Important:</strong> All site staff responsible for data entry should review these guidelines thoroughly before initiating any data collection activities.
+        </div>
+
+        <h2>2. General Principles</h2>
+        <h3>2.1 Data Entry Standards</h3>
+        <ul>
+            <li>All data must be entered in English</li>
+            <li>Use black or blue ink for paper CRFs (if applicable)</li>
+            <li>Enter dates in the format DD-MMM-YYYY (e.g., 15-Mar-2025)</li>
+            <li>Enter times using the 24-hour clock format (e.g., 14:30 instead of 2:30 PM)</li>
+            <li>Do not leave fields blank – use appropriate codes for missing data</li>
+        </ul>
+        
+        <h3>2.2 Missing Data Codes</h3>
+        <table>
+            <tr>
+                <th>Code</th>
+                <th>Meaning</th>
+                <th>When to Use</th>
+            </tr>
+            <tr>
+                <td>NK</td>
+                <td>Not Known</td>
+                <td>Information was sought but could not be obtained</td>
+            </tr>
+            <tr>
+                <td>ND</td>
+                <td>Not Done</td>
+                <td>Test or procedure was not performed</td>
+            </tr>
+            <tr>
+                <td>NA</td>
+                <td>Not Applicable</td>
+                <td>Question is not relevant based on other information</td>
+            </tr>
+        </table>
+
+        <h2>3. Electronic Data Capture (EDC) System</h2>
+        <p>The trial uses an electronic data capture system for all CRF data. Access is controlled through individual user credentials. All actions in the system are tracked with an audit trail that captures the user, date, time, and nature of each change.</p>
+        
+        <h3>3.1 Login Procedures</h3>
+        <ul>
+            <li>Access the EDC system at [secure URL]</li>
+            <li>Enter your personal username and password</li>
+            <li>Passwords must be changed every 90 days</li>
+            <li>Never share login credentials with others</li>
+        </ul>
+        
+        <h3>3.2 Data Entry Workflow</h3>
+        <ol>
+            <li>Select the appropriate study in the dashboard</li>
+            <li>Select the site number</li>
+            <li>Select the patient ID</li>
+            <li>Select the relevant CRF page</li>
+            <li>Enter data according to the guidelines in this document</li>
+            <li>Save the page when complete</li>
+        </ol>
+
+        <h2>4. Module-Specific Guidelines</h2>
+        
+        <h3>4.1 Demographic Information</h3>
+        <ul>
+            <li>Enter the patient's initials as first, middle, last (e.g., JDR for John David Roe)</li>
+            <li>Record only month and year of birth (not the day) to protect patient privacy</li>
+            <li>Enter all demographic data at the Screening visit</li>
+        </ul>
+        
+        <h3>4.2 Medical History</h3>
+        <ul>
+            <li>Enter all relevant medical conditions present within 5 years prior to screening</li>
+            <li>For each condition, specify whether it is ongoing or resolved</li>
+            <li>If resolved, provide the end date (month and year)</li>
+        </ul>
+        
+        <h3>4.3 Laboratory Results</h3>
+        <ul>
+            <li>Enter all values exactly as reported by the laboratory</li>
+            <li>Include the units of measurement</li>
+            <li>Flag any values outside of reference ranges</li>
+            <li>For missing samples, provide a reason using the appropriate code</li>
+        </ul>
+        
+        <h3>4.4 Adverse Events</h3>
+        <ul>
+            <li>Report all adverse events regardless of severity or relationship to study treatment</li>
+            <li>Provide onset date, resolution date (if applicable), severity, and relationship to study drug</li>
+            <li>For serious adverse events, complete the additional SAE form within 24 hours</li>
+        </ul>
+
+        <h2>5. Query Resolution Process</h2>
+        <p>Data queries will be generated by the system or by data management personnel when data is missing, inconsistent, or appears incorrect. All queries should be addressed promptly.</p>
+        
+        <h3>5.1 Query Response Timeframes</h3>
+        <ul>
+            <li>Safety-related queries: within 48 hours</li>
+            <li>Non-safety-related queries: within 5 business days</li>
+        </ul>
+        
+        <h3>5.2 Query Resolution Steps</h3>
+        <ol>
+            <li>Review the query and investigate the issue</li>
+            <li>If a correction is needed, update the data field</li>
+            <li>Provide a comment explaining the resolution</li>
+            <li>Submit the response</li>
+        </ol>
+
+        <h2>6. Quality Control</h2>
+        <p>Regular quality checks should be performed by site personnel to ensure data accuracy and completeness before database lock.</p>
+        
+        <div class="note">
+            <strong>Remember:</strong> The quality of clinical trial data directly impacts the validity of study conclusions. Accurate and complete CRF data is essential for patient safety and regulatory compliance.
+        </div>
+
+        <div class="footer">
+            <p>© 2025 Clinical Research Organization. All rights reserved.</p>
+            <p>This document is confidential and contains proprietary information.</p>
+        </div>
+    </div>
+</body>
+</html>

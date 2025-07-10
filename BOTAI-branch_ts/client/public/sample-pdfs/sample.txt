@@ -1,0 +1,1 @@
+This is a sample PDF document content for demonstration purposes. It would be displayed as an embedded PDF in a real application.
