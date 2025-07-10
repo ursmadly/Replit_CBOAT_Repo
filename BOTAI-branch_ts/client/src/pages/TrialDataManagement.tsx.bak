@@ -1,0 +1,666 @@
+import { useEffect, useState } from "react";
+import { useLocation, useRoute } from "wouter";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Download, FileText, Database } from "lucide-react";
+import AppLayout from "@/components/layout/AppLayout";
+
+// Raw Data Browser Component
+import { RawDataBrowser } from "@/components/data-management/domains/RawDataBrowser";
+
+const DOMAINS = [
+  { id: "DM", name: "Demographics", description: "Subject demographics and baseline characteristics" },
+  { id: "SV", name: "Subject Visits", description: "Subject visit and scheduling information" },
+  { id: "DS", name: "Disposition", description: "Subject disposition events and status" },
+  { id: "AE", name: "Adverse Events", description: "Adverse events reported during the study" },
+  { id: "SAE", name: "Serious Adverse Events", description: "Serious adverse events reported during the study" },
+  { id: "MH", name: "Medical History", description: "Medical history of the subject" },
+  { id: "CM", name: "Concomitant Medications", description: "Concomitant medications taken during the study" },
+  { id: "PD", name: "Pharmacodynamics", description: "Pharmacodynamic measurements" },
+  { id: "VS", name: "Vital Signs", description: "Vital signs measurements" },
+  { id: "LB", name: "Laboratory Tests", description: "Laboratory test results" },
+  { id: "EX", name: "Exposure", description: "Study drug exposure information" },
+];
+
+export default function TrialDataManagement() {
+  const [selectedStudy, setSelectedStudy] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState("edc");
+  const [activeDomain, setActiveDomain] = useState("DM");
+  const [, setLocation] = useLocation();
+  const [, params] = useRoute("/trial-data-management/:studyId");
+  
+
+
+  // Define types for trials and vendors
+  interface Trial {
+    id: number;
+    protocolId: string;
+    title: string;
+    phase: string;
+    status: string;
+    indication?: string;
+    startDate: string;
+    endDate?: string;
+    enrolledPatients?: number;
+  }
+  
+  interface Vendor {
+    id?: number;
+    name: string;
+    type: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+  }
+
+  // Get all trials
+  const { data: trials = [], isLoading: isLoadingTrials } = useQuery<Trial[]>({
+    queryKey: ["/api/trials"],
+  });
+
+  // Fetch vendors for the selected study
+  const { data: vendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/trials", selectedStudy, "vendors"],
+    queryFn: async () => {
+      if (!selectedStudy) return [];
+      const res = await fetch(`/api/trials/${selectedStudy}/vendors`);
+      if (!res.ok) throw new Error("Failed to fetch vendors");
+      return res.json();
+    },
+    enabled: !!selectedStudy,
+  });
+
+  useEffect(() => {
+    if (params?.studyId) {
+      setSelectedStudy(parseInt(params.studyId));
+    } else if (trials && trials.length > 0 && !selectedStudy) {
+      setSelectedStudy(trials[0].id);
+    }
+  }, [params, trials, selectedStudy]);
+
+  // Get the current study
+  const currentStudy = trials?.find((trial) => trial.id === selectedStudy);
+
+  // Get relevant vendors for the current tab
+  const getVendorsForTab = (tab: string): Vendor[] => {
+    if (!vendors) return [];
+    switch (tab) {
+      case "edc":
+        return vendors.filter((v: Vendor) => v.type === "EDC");
+      case "lab":
+        return vendors.filter((v: Vendor) => v.type === "Lab");
+      case "imaging":
+        return vendors.filter((v: Vendor) => v.type === "Imaging");
+      case "ctms":
+        return vendors.filter((v: Vendor) => v.type === "CTMS");
+      default:
+        return [];
+    }
+  };
+
+  const handleStudyChange = (value: string) => {
+    const studyId = parseInt(value);
+    setSelectedStudy(studyId);
+    setLocation(`/trial-data-management/${studyId}`);
+  };
+
+  return (
+    <AppLayout>
+      <div className="container mx-auto py-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Trial Data Management</h1>
+            <p className="text-muted-foreground">
+              View and analyze clinical trial data across multiple sources
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {isLoadingTrials ? (
+              <Skeleton className="h-10 w-[180px]" />
+            ) : (
+              <Select
+                value={selectedStudy.toString()}
+                onValueChange={handleStudyChange}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select Study" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">All Studies</SelectItem>
+                  {trials?.map((trial) => (
+                    <SelectItem key={trial.id} value={trial.id.toString()}>
+                      {trial.protocolId}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <FileText className="mr-2 h-4 w-4" />
+                Reports
+              </Button>
+              <Button variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <ConversationalDMAssistant
+                open={isDMAssistantOpen}
+                onOpenChange={setIsDMAssistantOpen}
+                activeTab={dmAIActiveTab}
+                onActiveTabChange={setDMAIActiveTab}
+                studyId={selectedStudy > 0 ? selectedStudy : 1}
+                onAnalysisComplete={(results) => {
+                  console.log("Analysis completed:", results);
+                  // If schedule was updated, update our local state
+                  if (results.scheduleUpdated) {
+                    setActiveSchedule({
+                      ...activeSchedule,
+                      frequency: results.scheduleFrequency || activeSchedule.frequency,
+                      nextRunDate: results.nextRunDate || activeSchedule.nextRunDate,
+                      checkTypes: results.checkTypes || activeSchedule.checkTypes
+                    });
+                  }
+                }}
+              />
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="bg-gradient-to-r from-blue-50 to-teal-100 text-blue-700 hover:from-blue-100 hover:to-teal-200 border-teal-200 transition-all duration-300 shadow-sm"
+              >
+                <FaUserDoctor className="mr-2 h-5 w-5 text-teal-600" />
+                <span className="bg-gradient-to-r from-blue-600 to-teal-600 text-transparent bg-clip-text font-medium">CRA.AI</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {activeSchedule.isActive && (
+          <Alert className="mb-4 border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center">
+              <CalendarIcon className="h-5 w-5 text-blue-700 mr-2" />
+              <AlertTitle className="text-blue-800 font-semibold">DM.AI Data Quality Schedule Active</AlertTitle>
+            </div>
+            <AlertDescription className="mt-2 flex flex-wrap items-center justify-between">
+              <div className="flex-1">
+                <p className="text-blue-700">
+                  DM.AI is scheduled to run <span className="font-semibold">{activeSchedule.frequency}</span> quality checks and data reconciliation.
+                  Next check in <span className="font-semibold">{Math.round((activeSchedule.nextRunDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))}</span> days 
+                  on <span className="font-semibold">{activeSchedule.nextRunDate.toLocaleDateString()}</span>.
+                </p>
+                <div className="flex flex-wrap mt-1 gap-1">
+                  {activeSchedule.checkTypes.map((checkType, index) => (
+                    <Badge key={index} variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
+                      {checkType}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="ml-4 mt-2 sm:mt-0 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
+                onClick={() => {
+                  setIsDMAssistantOpen(true);
+                  setDMAIActiveTab("schedule");
+                }}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Manage Schedule
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {currentStudy && (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle>{currentStudy.title}</CardTitle>
+              <CardDescription>
+                Protocol: {currentStudy.protocolId} | Phase: {currentStudy.phase} | 
+                Status: <span className="font-medium">{currentStudy.status}</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-muted-foreground">Indication</h4>
+                  <p>{currentStudy.indication || "Not specified"}</p>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-muted-foreground">Start Date</h4>
+                  <p>{new Date(currentStudy.startDate).toLocaleDateString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-muted-foreground">End Date</h4>
+                  <p>{currentStudy.endDate ? new Date(currentStudy.endDate).toLocaleDateString() : "Ongoing"}</p>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-muted-foreground">Enrolled Patients</h4>
+                  <p>{currentStudy.enrolledPatients || "N/A"}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-5 mb-6">
+            <TabsTrigger value="edc">EDC Data</TabsTrigger>
+            <TabsTrigger value="audit">EDC Audit Data</TabsTrigger>
+            <TabsTrigger value="lab">Lab Data</TabsTrigger>
+            <TabsTrigger value="imaging">Imaging Data</TabsTrigger>
+            <TabsTrigger value="ctms">CTMS Data</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="edc" className="mt-0">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Electronic Data Capture (EDC)</CardTitle>
+                    <CardDescription>
+                      Data Provider: <span className="font-medium">
+                        {vendors && getVendorsForTab("edc").length > 0 
+                          ? getVendorsForTab("edc")[0]?.name 
+                          : (selectedStudy === 1 ? "Medidata Rave" : selectedStudy === 2 ? "IQVIA Rave" : "EDC System")}
+                      </span>
+                      <span className="ml-2 text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                        ODM Adapter v1.2
+                      </span>
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Database className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Last sync: {new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={activeDomain} onValueChange={setActiveDomain}>
+                  <TabsList className="flex flex-wrap gap-1 mb-4">
+                    {DOMAINS.map((domain) => (
+                      <TabsTrigger key={domain.id} value={domain.id}>
+                        {domain.id}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  
+                  {DOMAINS.map((domain) => (
+                    <TabsContent key={domain.id} value={domain.id} className="mt-0">
+                      <Card className="border-0 shadow-none">
+                        <CardHeader className="px-0 pt-0">
+                          <CardTitle className="text-lg">{domain.name}</CardTitle>
+                          <CardDescription>{domain.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="px-0 pt-0">
+                          <RawDataBrowser 
+                            studyId={selectedStudy} 
+                            domain={domain.id} 
+                            vendor={vendors && getVendorsForTab("edc").length > 0 
+                              ? getVendorsForTab("edc")[0]?.name 
+                              : (selectedStudy === 1 ? "Medidata Rave" : selectedStudy === 2 ? "IQVIA Rave" : "EDC System")}
+                            dataSource="EDC"
+                          />
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="lab" className="mt-0">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Laboratory Data</CardTitle>
+                    <CardDescription>
+                      Data Provider: <span className="font-medium">
+                        {vendors && getVendorsForTab("lab").length > 0 
+                          ? getVendorsForTab("lab")[0]?.name 
+                          : (selectedStudy === 1 ? "Labcorp" : selectedStudy === 2 ? "Quest Diagnostics" : "Central Lab")}
+                      </span>
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Database className="h-5 w-5 text-amber-500" />
+                    <span className="text-sm text-muted-foreground">Last sync: {new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <RawDataBrowser 
+                  studyId={selectedStudy} 
+                  domain="LB" 
+                  vendor={vendors && getVendorsForTab("lab").length > 0 
+                    ? getVendorsForTab("lab")[0]?.name 
+                    : (selectedStudy === 1 ? "Labcorp" : selectedStudy === 2 ? "Quest Diagnostics" : "Central Lab")}
+                  dataSource="Central Laboratory"
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="imaging" className="mt-0">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Imaging Data (RECIST)</CardTitle>
+                    <CardDescription>
+                      Data Provider: <span className="font-medium">
+                        {vendors && getVendorsForTab("imaging").length > 0 
+                          ? getVendorsForTab("imaging")[0]?.name 
+                          : (selectedStudy === 1 ? "Calyx" : selectedStudy === 2 ? "Bioclinica" : "Imaging Center")}
+                      </span>
+                      <span className="ml-2 text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                        RECIST 1.1
+                      </span>
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Database className="h-5 w-5 text-green-500" />
+                    <span className="text-sm text-muted-foreground">Last sync: {new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="tu">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="tu">Tumor Data (TU)</TabsTrigger>
+                    <TabsTrigger value="tr">Response Assessment (TR)</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="tu" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Tumor Measurement Data</CardTitle>
+                        <CardDescription>
+                          Target and non-target lesion measurements according to RECIST criteria
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="TU" 
+                          vendor={vendors && getVendorsForTab("imaging").length > 0 
+                            ? getVendorsForTab("imaging")[0]?.name 
+                            : (selectedStudy === 1 ? "Calyx" : selectedStudy === 2 ? "Bioclinica" : "Imaging Center")}
+                          dataSource="Imaging RECIST"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="tr" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Tumor Response Assessment</CardTitle>
+                        <CardDescription>
+                          Response evaluations based on RECIST criteria (CR, PR, SD, PD)
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="TR" 
+                          vendor={vendors && getVendorsForTab("imaging").length > 0 
+                            ? getVendorsForTab("imaging")[0]?.name 
+                            : (selectedStudy === 1 ? "Calyx" : selectedStudy === 2 ? "Bioclinica" : "Imaging Center")}
+                          dataSource="Tumor Response"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ctms" className="mt-0">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Clinical Trial Management System Data</CardTitle>
+                    <CardDescription>
+                      Data Provider: <span className="font-medium">
+                        {vendors && getVendorsForTab("ctms").length > 0 
+                          ? getVendorsForTab("ctms")[0]?.name 
+                          : (selectedStudy === 1 ? "Veeva Vault CTMS" : selectedStudy === 2 ? "Medidata CTMS" : "CTMS Platform")}
+                      </span>
+                      <span className="ml-2 text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                        CTMS API v3.1
+                      </span>
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Database className="h-5 w-5 text-blue-500" />
+                    <span className="text-sm text-muted-foreground">Last sync: {new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="study">
+                  <TabsList className="flex flex-wrap gap-1 mb-4">
+                    <TabsTrigger value="study">Study</TabsTrigger>
+                    <TabsTrigger value="site">Sites</TabsTrigger>
+                    <TabsTrigger value="country">Countries</TabsTrigger>
+                    <TabsTrigger value="contact">Contacts</TabsTrigger>
+                    <TabsTrigger value="payment">Payments</TabsTrigger>
+                    <TabsTrigger value="deviation">Deviations</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="study" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Study Details</CardTitle>
+                        <CardDescription>
+                          Core study information and metadata
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="CTMS_STUDY" 
+                          vendor={vendors && getVendorsForTab("ctms").length > 0 
+                            ? getVendorsForTab("ctms")[0]?.name 
+                            : (selectedStudy === 1 ? "Veeva Vault CTMS" : selectedStudy === 2 ? "Medidata CTMS" : "CTMS Platform")}
+                          dataSource="CTMS Study"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="site" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Site Information</CardTitle>
+                        <CardDescription>
+                          Clinical site details and performance metrics
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="CTMS_SITE" 
+                          vendor={vendors && getVendorsForTab("ctms").length > 0 
+                            ? getVendorsForTab("ctms")[0]?.name 
+                            : (selectedStudy === 1 ? "Veeva Vault CTMS" : selectedStudy === 2 ? "Medidata CTMS" : "CTMS Platform")}
+                          dataSource="CTMS Sites"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="country" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Country Information</CardTitle>
+                        <CardDescription>
+                          Country-level study data and regulatory information
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="CTMS_COUNTRY" 
+                          vendor={vendors && getVendorsForTab("ctms").length > 0 
+                            ? getVendorsForTab("ctms")[0]?.name 
+                            : (selectedStudy === 1 ? "Veeva Vault CTMS" : selectedStudy === 2 ? "Medidata CTMS" : "CTMS Platform")}
+                          dataSource="CTMS Countries"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="contact" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Contact Information</CardTitle>
+                        <CardDescription>
+                          Study personnel and site contacts
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="CTMS_CONTACT" 
+                          vendor={vendors && getVendorsForTab("ctms").length > 0 
+                            ? getVendorsForTab("ctms")[0]?.name 
+                            : (selectedStudy === 1 ? "Veeva Vault CTMS" : selectedStudy === 2 ? "Medidata CTMS" : "CTMS Platform")}
+                          dataSource="CTMS Contacts"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="payment" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Site Payments</CardTitle>
+                        <CardDescription>
+                          Financial transactions and payment milestones
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="CTMS_PAYMENT" 
+                          vendor={vendors && getVendorsForTab("ctms").length > 0 
+                            ? getVendorsForTab("ctms")[0]?.name 
+                            : (selectedStudy === 1 ? "Veeva Vault CTMS" : selectedStudy === 2 ? "Medidata CTMS" : "CTMS Platform")}
+                          dataSource="CTMS Payments"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="deviation" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Protocol Deviations</CardTitle>
+                        <CardDescription>
+                          Documented protocol deviations and resolutions
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="CTMS_DEVIATION" 
+                          vendor={vendors && getVendorsForTab("ctms").length > 0 
+                            ? getVendorsForTab("ctms")[0]?.name 
+                            : (selectedStudy === 1 ? "Veeva Vault CTMS" : selectedStudy === 2 ? "Medidata CTMS" : "CTMS Platform")}
+                          dataSource="CTMS Deviations"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-0">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>EDC Audit Data</CardTitle>
+                    <CardDescription>
+                      Data Provider: <span className="font-medium">
+                        {selectedStudy === 1 ? "Medidata Rave" : selectedStudy === 2 ? "IQVIA Rave" : "System Audit Log"}
+                      </span>
+                      <span className="ml-2 text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                        ODM Adapter v1.2
+                      </span>
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Database className="h-5 w-5 text-purple-500" />
+                    <span className="text-sm text-muted-foreground">Last sync: {new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="forms">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="forms">Study Forms</TabsTrigger>
+                    <TabsTrigger value="system">System Logs</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="forms" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">Form Version History</CardTitle>
+                        <CardDescription>
+                          Track study form versions and changes across study sites
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="FORM_AUDIT" 
+                          vendor={selectedStudy === 1 ? "Medidata Rave" : selectedStudy === 2 ? "IQVIA Rave" : "Form Management System"}
+                          dataSource="Study Forms"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="system" className="mt-0">
+                    <Card className="border-0 shadow-none">
+                      <CardHeader className="px-0 pt-0">
+                        <CardTitle className="text-lg">System Audit Logs</CardTitle>
+                        <CardDescription>
+                          User activity and system event logs
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-0 pt-0">
+                        <RawDataBrowser 
+                          studyId={selectedStudy} 
+                          domain="AUDIT" 
+                          vendor={selectedStudy === 1 ? "Medidata Rave" : selectedStudy === 2 ? "IQVIA Rave" : "System Audit Log"}
+                          dataSource="Audit Trail"
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+}

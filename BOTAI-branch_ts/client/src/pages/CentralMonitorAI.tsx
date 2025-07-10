@@ -1,0 +1,2852 @@
+import { useEffect, useState, useCallback } from "react";
+import { useLocation } from "wouter";
+import AppLayout from "@/components/layout/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle as AlertCircleIcon, Check, CheckCircle2, Clock, Cpu, Download, Eye, EyeOff, FileJson, FileSpreadsheet, Loader2, Maximize2, Minimize2, RefreshCw, ChevronLeft, ChevronRight, Save, Server } from "lucide-react";
+import { CentralMonitorBot } from "@/components/ai-assistants/CentralMonitorBot";
+import { WorkflowDependencyManager } from "@/components/ai-workflow/WorkflowDependencyManager";
+import { AgentType, WorkflowExecutionMode } from "@shared/schema";
+
+export default function CentralMonitorAI() {
+  const { toast } = useToast();
+  const [_, navigate] = useLocation();
+  const [selectedTrial, setSelectedTrial] = useState<number>(1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [showBackendAgents, setShowBackendAgents] = useState(true);
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+  const [isAgentMode, setIsAgentMode] = useState(true); // Add state for Agent/Human mode toggle
+  const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<{
+    queries: number;
+    tasks: number;
+    issues: number;
+    signals: number;
+  }>({ queries: 0, tasks: 0, issues: 0, signals: 0 });
+  
+  // Central Monitor AI Settings
+  const [centralSettings, setCentralSettings] = useState({
+    activeMonitoring: true,
+    scheduledMonitoring: false,
+    scheduleFrequency: {
+      daily: true,
+      weekly: true,
+      biweekly: false,
+      monthly: true
+    },
+    eventTriggered: true,
+    triggerEvents: {
+      dataImport: true,
+      queryResponse: true,
+      siteAddition: true,
+      subjectAddition: true
+    }
+  });
+  
+  // Define trial type
+  type Trial = {
+    id: number;
+    protocolId: string;
+    title: string;
+    description: string;
+    phase: string;
+    status: string;
+    therapeuticArea: string;
+    indication: string;
+  };
+
+  // Fetch trials data
+  const { data: trials } = useQuery<Trial[]>({
+    queryKey: ['/api/trials'],
+    queryFn: async () => {
+      const response = await fetch('/api/trials');
+      if (!response.ok) throw new Error('Failed to fetch trials');
+      return response.json();
+    }
+  });
+  
+  // Run analysis function
+  const runAnalysis = async () => {
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+    
+    // Simulate progress
+    const interval = setInterval(() => {
+      setAnalysisProgress(prev => {
+        const newProgress = prev + 5;
+        if (newProgress >= 100) {
+          clearInterval(interval);
+          setIsAnalyzing(false);
+          
+          // Generate simulated results
+          const simulatedResults = {
+            queries: Math.floor(Math.random() * 5) + 3, // 3-7 queries
+            tasks: Math.floor(Math.random() * 6) + 2,   // 2-7 tasks
+            issues: Math.floor(Math.random() * 4) + 1,  // 1-4 issues
+            signals: Math.floor(Math.random() * 3) + 1, // 1-3 signals
+          };
+          
+          setAnalysisResults(simulatedResults);
+          
+          // Show the results dialog
+          setIsResultDialogOpen(true);
+          
+          return 100;
+        }
+        return newProgress;
+      });
+    }, 200);
+  };
+
+  return (
+    <AppLayout>
+      <div className="flex flex-col h-full">
+        {/* Back to AI Agents Hub button */}
+        <div className="mb-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate("/ai-agents")} 
+            className="flex items-center gap-1 text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back to AI Agents Hub
+          </Button>
+        </div>
+
+        {/* Banner for active monitoring */}
+        <div className="bg-blue-700 p-3 mb-4 rounded-md shadow-md text-center">
+          <AlertCircleIcon className="h-5 w-5 inline-block mr-2 animate-pulse text-white" />
+          <span className="text-white font-bold">Active monitoring on the data from Trial Data Management</span>
+        </div>
+        
+        {/* Full screen agent dialog */}
+        {/* Analysis Results Dialog */}
+        <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl text-blue-800">
+                Monitoring Analysis Complete
+              </DialogTitle>
+              <DialogDescription>
+                Here's a summary of issues detected in {trials?.find(t => t.id === selectedTrial)?.protocolId || `Trial #${selectedTrial}`}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100">
+                  <div className="flex flex-col items-center">
+                    <div className="text-3xl font-bold text-blue-700 mb-1">{analysisResults.queries}</div>
+                    <div className="text-sm text-gray-600">New Queries</div>
+                  </div>
+                </Card>
+                
+                <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100">
+                  <div className="flex flex-col items-center">
+                    <div className="text-3xl font-bold text-blue-700 mb-1">{analysisResults.tasks}</div>
+                    <div className="text-sm text-gray-600">New Tasks</div>
+                  </div>
+                </Card>
+                
+                <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100">
+                  <div className="flex flex-col items-center">
+                    <div className="text-3xl font-bold text-blue-700 mb-1">{analysisResults.issues}</div>
+                    <div className="text-sm text-gray-600">Issues Found</div>
+                  </div>
+                </Card>
+                
+                <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100">
+                  <div className="flex flex-col items-center">
+                    <div className="text-3xl font-bold text-blue-700 mb-1">{analysisResults.signals}</div>
+                    <div className="text-sm text-gray-600">Signals Detected</div>
+                  </div>
+                </Card>
+              </div>
+              
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h4 className="font-medium text-blue-800 mb-2">Key Findings</h4>
+                <ul className="text-sm space-y-2">
+                  {analysisResults.signals > 0 && (
+                    <li className="flex items-start">
+                      <AlertCircleIcon className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>Potential safety signal detected related to {Math.random() > 0.5 ? 'liver enzymes' : 'blood pressure measurements'}</span>
+                    </li>
+                  )}
+                  {analysisResults.issues > 0 && (
+                    <li className="flex items-start">
+                      <AlertCircleIcon className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>{analysisResults.issues} data consistency {analysisResults.issues === 1 ? 'issue' : 'issues'} requiring review</span>
+                    </li>
+                  )}
+                  {analysisResults.queries > 0 && (
+                    <li className="flex items-start">
+                      <Check className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>Created {analysisResults.queries} new {analysisResults.queries === 1 ? 'query' : 'queries'} for site review</span>
+                    </li>
+                  )}
+                  {analysisResults.tasks > 0 && (
+                    <li className="flex items-start">
+                      <Check className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>Assigned {analysisResults.tasks} {analysisResults.tasks === 1 ? 'task' : 'tasks'} to study team members</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700" 
+                onClick={() => setIsResultDialogOpen(false)}
+              >
+                View Dashboard
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Agent Dialog */}
+        <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
+          <DialogContent className="max-w-6xl h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>AI Agent System Monitor</DialogTitle>
+              <DialogDescription>Real-time view of all active AI agents processing your clinical trial data</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto p-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {/* Protocol Monitoring Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Protocol Monitor</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Monitoring protocol deviations across sites and subjects</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">5m ago</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Subjects monitored:</span>
+                      <span className="font-medium">52</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Deviations detected:</span>
+                      <span className="font-medium">3</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Queries created:</span>
+                      <span className="font-medium">2</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Site Performance Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Site Performance</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Tracking enrollment, data entry, and query resolution metrics</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">1m ago</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Sites monitored:</span>
+                      <span className="font-medium">12</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Enrollment alerts:</span>
+                      <span className="font-medium">1</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Task assignments:</span>
+                      <span className="font-medium">3</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lab Data Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Lab Data Monitor</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Analyzing lab trends and flagging clinically significant changes</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">Just now</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Lab values analyzed:</span>
+                      <span className="font-medium">287</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Abnormal results:</span>
+                      <span className="font-medium">8</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">CTCAE Grade 3+:</span>
+                      <span className="font-medium">2</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Safety Signal Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Safety Signal</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Detecting potential safety signals across AEs and lab data</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">3m ago</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">AEs analyzed:</span>
+                      <span className="font-medium">42</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Potential signals:</span>
+                      <span className="font-medium">3</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Safety queries:</span>
+                      <span className="font-medium">2</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Agent Activity Log - Full Detail */}
+              <div className="mt-6 rounded-lg bg-gradient-to-r from-gray-900 to-blue-900 p-4 text-green-400 font-mono text-xs border border-gray-700 relative shadow-inner">
+                <div className="absolute top-3 right-3 flex space-x-1">
+                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                  <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
+                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                </div>
+                <h4 className="text-white mb-3 text-sm flex items-center font-semibold">
+                  <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                  Monitor Activity Log
+                  <span className="text-xs text-gray-400 ml-2 font-normal">Detailed agent activity</span>
+                </h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 py-1 pr-2">
+                  <p className="opacity-95">[<span className="text-blue-400">13:51:15</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Checking visit schedule adherence for 52 subjects...</p>
+                  <p className="opacity-90">[<span className="text-blue-400">13:50:48</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Site 103 showing 22% decline in enrollment rate</p>
+                  <p className="opacity-95">[<span className="text-blue-400">13:50:30</span>] <span className="text-purple-400">LabDataMonitorAgent</span>: New lab data received from central lab (287 results)</p>
+                  <p className="opacity-100 text-green-300 font-medium">[<span className="text-blue-400">13:50:15</span>] <span className="text-purple-400">SafetySignalAgent</span>: Creating Query #PD-042 for elevated liver enzymes in 3 subjects</p>
+                  <p className="opacity-85">[<span className="text-blue-400">13:49:55</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Detected 3 protocol deviations in visit window compliance</p>
+                  <p className="opacity-80">[<span className="text-blue-400">13:49:30</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Analyzing query resolution times for all sites</p>
+                  <p className="opacity-75">[<span className="text-blue-400">13:49:10</span>] <span className="text-purple-400">LabDataMonitorAgent</span>: Applying reference ranges to new lab results</p>
+                  <p className="opacity-70">[<span className="text-blue-400">13:48:45</span>] <span className="text-purple-400">SafetySignalAgent</span>: Cross-referencing AEs with concomitant medications</p>
+                  <p className="opacity-65">[<span className="text-blue-400">13:48:30</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Updating trial milestones</p>
+                  <p className="opacity-60">[<span className="text-blue-400">13:48:00</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Calculating data entry metrics by site</p>
+                  <p className="opacity-55">[<span className="text-blue-400">13:47:45</span>] <span className="text-purple-400">LabDataMonitorAgent</span>: Trend analysis of hematology values</p>
+                  <p className="opacity-50">[<span className="text-blue-400">13:47:30</span>] <span className="text-purple-400">SafetySignalAgent</span>: Safety report generation scheduled</p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Super Agent Card - The Sentinel Guardian */}
+        <div className="agent-card monitor-agent mb-6">
+          <div className="agent-icon-wrapper">
+            <div className="diamond-frame">
+              <div className="glow-effect crimson-glow"></div>
+              <Server className="agent-icon crimson-icon" />
+              <div className="scan-beam"></div>
+            </div>
+          </div>
+          <div className="agent-details">
+            <h3 className="agent-title">
+              <span className="highlight crimson">The Sentinel Guardian</span>
+            </h3>
+            <div className="agent-subtitle">Central Monitor.AI</div>
+            <div className="agent-status">
+              <span className="status-dot active"></span>
+              <span>Vigilance activated across all trial data</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Top control panel with study selection and action buttons */}
+        <div className="bg-gradient-to-r from-blue-50 to-white p-4 rounded-lg border border-blue-100 mb-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate('/ai-agents')} 
+                  className="flex items-center gap-1 text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to AI Agents Hub
+                </Button>
+              </div>
+              <h1 className="text-2xl font-bold text-blue-800">Central Monitor.AI</h1>
+              <p className="text-gray-600">AI-powered monitoring for clinical trial data</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Select defaultValue={selectedTrial.toString()} onValueChange={(value) => setSelectedTrial(parseInt(value))}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select Trial" />
+                </SelectTrigger>
+                <SelectContent>
+                  {trials?.map((trial) => (
+                    <SelectItem key={trial.id} value={trial.id.toString()}>
+                      {trial.protocolId} - {trial.title}
+                    </SelectItem>
+                  )) || (
+                    <>
+                      <SelectItem value="1">PRO001 - Diabetes Type 2</SelectItem>
+                      <SelectItem value="2">PRO002 - Rheumatoid Arthritis</SelectItem>
+                      <SelectItem value="3">PRO003 - Advanced Breast Cancer</SelectItem>
+                      <SelectItem value="4">PRO004 - Alzheimer's Disease</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center mr-4 bg-blue-50 p-2 rounded-md border border-blue-100">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="agent-mode"
+                    checked={isAgentMode}
+                    onCheckedChange={setIsAgentMode}
+                  />
+                  <Label htmlFor="agent-mode" className="font-medium text-blue-800">
+                    {isAgentMode ? 'Agent.AI' : 'Human-in-Loop'}
+                  </Label>
+                </div>
+              </div>
+              <Button 
+                onClick={runAnalysis} 
+                disabled={isAnalyzing}
+                className="bg-blue-600 hover:bg-blue-700">
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Running Analysis
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Run Monitor
+                  </>
+                )}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowBackendAgents(!showBackendAgents)}
+                className="border-blue-200"
+              >
+                {showBackendAgents ? (
+                  <>
+                    <EyeOff className="mr-2 h-4 w-4" />
+                    Hide Agents
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Show Agents
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          {isAnalyzing && (
+            <div className="mt-4">
+              <div className="flex justify-between mb-2 text-sm">
+                <span>Analyzing trial data...</span>
+                <span>{analysisProgress}%</span>
+              </div>
+              <Progress value={analysisProgress} className="h-2" />
+            </div>
+          )}
+        </div>
+        
+        {/* Backend agents section - collapsible */}
+        {showBackendAgents && (
+          <div className="mb-6 relative">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-semibold text-blue-800">AI Monitoring Agents</h2>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsAgentDialogOpen(true)}
+                className="text-blue-600"
+              >
+                <Maximize2 className="h-4 w-4 mr-1" />
+                Expand
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {/* Protocol Monitoring Agent */}
+              <div className="rounded-lg bg-gradient-to-br from-blue-50 to-white p-3 border border-blue-100 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800 text-sm">Protocol Monitor</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600">Monitoring protocol deviations</p>
+                <div className="mt-2 flex justify-between text-xs">
+                  <span className="text-gray-500">3 deviations detected</span>
+                  <span className="font-medium text-blue-600">2 queries</span>
+                </div>
+              </div>
+              
+              {/* Site Performance Agent */}
+              <div className="rounded-lg bg-gradient-to-br from-blue-50 to-white p-3 border border-blue-100 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800 text-sm">Site Performance</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600">Tracking site metrics</p>
+                <div className="mt-2 flex justify-between text-xs">
+                  <span className="text-gray-500">12 sites monitored</span>
+                  <span className="font-medium text-blue-600">1 alert</span>
+                </div>
+              </div>
+              
+              {/* Lab Data Agent */}
+              <div className="rounded-lg bg-gradient-to-br from-blue-50 to-white p-3 border border-blue-100 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800 text-sm">Lab Data Monitor</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600">Analyzing lab trends</p>
+                <div className="mt-2 flex justify-between text-xs">
+                  <span className="text-gray-500">287 values analyzed</span>
+                  <span className="font-medium text-blue-600">8 abnormal</span>
+                </div>
+              </div>
+              
+              {/* Safety Signal Agent */}
+              <div className="rounded-lg bg-gradient-to-br from-blue-50 to-white p-3 border border-blue-100 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800 text-sm">Safety Signal</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600">Detecting safety signals</p>
+                <div className="mt-2 flex justify-between text-xs">
+                  <span className="text-gray-500">42 AEs analyzed</span>
+                  <span className="font-medium text-blue-600">3 signals</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Main tab interface */}
+        <Tabs defaultValue="dashboard" className="flex-1 flex flex-col" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-6 mb-4">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="queries">Queries</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="logs">Event Log</TabsTrigger>
+            <TabsTrigger value="workflows">Workflows</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+          
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="flex-1">
+            {/* DB Lock Compliance Section */}
+            <Card className="mb-6 border-blue-100">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium text-blue-800 flex items-center">
+                  <Server className="h-5 w-5 mr-2 text-blue-600" />
+                  DB Lock Compliance Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {selectedTrial === 1 && (
+                    <>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Status</div>
+                        <div className="text-lg font-bold text-blue-700">IN PROGRESS</div>
+                        <div className="mt-2 text-sm text-gray-500">Est. Lock Date: {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Overall Readiness</div>
+                        <div className="text-lg font-bold text-blue-700">75%</div>
+                        <Progress value={75} className="h-2 mt-2" />
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Outstanding Issues</div>
+                        <div className="text-lg font-bold text-amber-600">8</div>
+                        <div className="mt-2 text-sm text-gray-500">Across 3 sites</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Site Readiness</div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Complete</span>
+                          <span className="font-medium">0/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Ready</span>
+                          <span className="font-medium">1/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>In Progress</span>
+                          <span className="font-medium">2/3</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {selectedTrial === 2 && (
+                    <>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Status</div>
+                        <div className="text-lg font-bold text-green-700">READY</div>
+                        <div className="mt-2 text-sm text-gray-500">Est. Lock Date: {new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toLocaleDateString()}</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Overall Readiness</div>
+                        <div className="text-lg font-bold text-blue-700">85%</div>
+                        <Progress value={85} className="h-2 mt-2" />
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Outstanding Issues</div>
+                        <div className="text-lg font-bold text-amber-600">6</div>
+                        <div className="mt-2 text-sm text-gray-500">Across 3 sites</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Site Readiness</div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Complete</span>
+                          <span className="font-medium">0/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Ready</span>
+                          <span className="font-medium">1/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>In Progress</span>
+                          <span className="font-medium">2/3</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {selectedTrial === 3 && (
+                    <>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Status</div>
+                        <div className="text-lg font-bold text-red-700">NOT STARTED</div>
+                        <div className="mt-2 text-sm text-gray-500">Est. Lock Date: {new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toLocaleDateString()}</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Overall Readiness</div>
+                        <div className="text-lg font-bold text-blue-700">35%</div>
+                        <Progress value={35} className="h-2 mt-2" />
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Outstanding Issues</div>
+                        <div className="text-lg font-bold text-red-600">28</div>
+                        <div className="mt-2 text-sm text-gray-500">Across 3 sites</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Site Readiness</div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Complete</span>
+                          <span className="font-medium">0/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Ready</span>
+                          <span className="font-medium">0/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>In Progress</span>
+                          <span className="font-medium">1/3</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {selectedTrial === 4 && (
+                    <>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Status</div>
+                        <div className="text-lg font-bold text-blue-700">IN PROGRESS</div>
+                        <div className="mt-2 text-sm text-gray-500">Est. Lock Date: {new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toLocaleDateString()}</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Overall Readiness</div>
+                        <div className="text-lg font-bold text-blue-700">65%</div>
+                        <Progress value={65} className="h-2 mt-2" />
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Outstanding Issues</div>
+                        <div className="text-lg font-bold text-amber-600">15</div>
+                        <div className="mt-2 text-sm text-gray-500">Across 3 sites</div>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-white rounded-md p-4 border border-blue-100">
+                        <div className="text-sm font-medium text-gray-500 mb-1">Site Readiness</div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Complete</span>
+                          <span className="font-medium">0/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>Ready</span>
+                          <span className="font-medium">1/3</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-sm">
+                          <span>In Progress</span>
+                          <span className="font-medium">1/3</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                {/* Detailed site breakdown for DB Lock Compliance */}
+                <div className="mt-5 border-t border-blue-100 pt-4">
+                  <h4 className="font-medium text-blue-800 mb-3">Site-Level DB Lock Compliance</h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Site</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Readiness</TableHead>
+                        <TableHead>Outstanding Issues</TableHead>
+                        <TableHead>Last Updated</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedTrial === 1 && (
+                        <>
+                          <TableRow>
+                            <TableCell className="font-medium">Boston Medical Center</TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">78%</span>
+                                <Progress value={78} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>4</TableCell>
+                            <TableCell>{new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Chicago Research Hospital</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800">READY</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">92%</span>
+                                <Progress value={92} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>0</TableCell>
+                            <TableCell>{new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Denver Health Institute</TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">67%</span>
+                                <Progress value={67} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>8</TableCell>
+                            <TableCell>{new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                        </>
+                      )}
+                      
+                      {selectedTrial === 2 && (
+                        <>
+                          <TableRow>
+                            <TableCell className="font-medium">Arthritis Research Institute</TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">84%</span>
+                                <Progress value={84} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>4</TableCell>
+                            <TableCell>{new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Rheumatology Specialist Center</TableCell>
+                            <TableCell>
+                              <Badge className="bg-yellow-100 text-yellow-800">PENDING</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">45%</span>
+                                <Progress value={45} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>8</TableCell>
+                            <TableCell>{new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Joint & Bone Research</TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">72%</span>
+                                <Progress value={72} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>5</TableCell>
+                            <TableCell>{new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                        </>
+                      )}
+                      
+                      {selectedTrial === 3 && (
+                        <>
+                          <TableRow>
+                            <TableCell className="font-medium">Oncology Research Partners</TableCell>
+                            <TableCell>
+                              <Badge className="bg-yellow-100 text-yellow-800">PENDING</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">35%</span>
+                                <Progress value={35} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>12</TableCell>
+                            <TableCell>{new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Cancer Treatment Alliance</TableCell>
+                            <TableCell>
+                              <Badge className="bg-yellow-100 text-yellow-800">PENDING</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">28%</span>
+                                <Progress value={28} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>15</TableCell>
+                            <TableCell>{new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Metropolitan Cancer Center</TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">48%</span>
+                                <Progress value={48} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>7</TableCell>
+                            <TableCell>{new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                        </>
+                      )}
+                      
+                      {selectedTrial === 4 && (
+                        <>
+                          <TableRow>
+                            <TableCell className="font-medium">Neurology Research Institute</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800">READY</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">88%</span>
+                                <Progress value={88} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>2</TableCell>
+                            <TableCell>{new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Memory and Cognitive Health Center</TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">65%</span>
+                                <Progress value={65} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>5</TableCell>
+                            <TableCell>{new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Senior Care Research</TableCell>
+                            <TableCell>
+                              <Badge className="bg-yellow-100 text-yellow-800">PENDING</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <span className="mr-2 w-8">42%</span>
+                                <Progress value={42} className="h-2 flex-1" />
+                              </div>
+                            </TableCell>
+                            <TableCell>8</TableCell>
+                            <TableCell>{new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                        </>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              {/* KPI Cards */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-medium text-blue-800">Queries</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">24</div>
+                  <div className="text-sm text-gray-500 mt-1">8 Open • 16 Closed</div>
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Response Rate</span>
+                      <span className="font-medium">83%</span>
+                    </div>
+                    <Progress value={83} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-medium text-blue-800">Sites</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">12</div>
+                  <div className="text-sm text-gray-500 mt-1">10 Active • 2 Pending</div>
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Enrollment Target</span>
+                      <span className="font-medium">68%</span>
+                    </div>
+                    <Progress value={68} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-medium text-blue-800">Protocol Deviations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">7</div>
+                  <div className="text-sm text-gray-500 mt-1">3 Major • 4 Minor</div>
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Resolution Rate</span>
+                      <span className="font-medium">42%</span>
+                    </div>
+                    <Progress value={42} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Main Dashboard Content */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main metrics panel */}
+              <div className="lg:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Site Performance Overview</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Site</TableHead>
+                          <TableHead>Subjects</TableHead>
+                          <TableHead>Query Rate</TableHead>
+                          <TableHead>Response Time</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">Site 101</TableCell>
+                          <TableCell>12</TableCell>
+                          <TableCell>2.4%</TableCell>
+                          <TableCell>1.2 days</TableCell>
+                          <TableCell><Badge className="bg-green-100 text-green-800">Good</Badge></TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Site 102</TableCell>
+                          <TableCell>8</TableCell>
+                          <TableCell>3.8%</TableCell>
+                          <TableCell>2.5 days</TableCell>
+                          <TableCell><Badge className="bg-yellow-100 text-yellow-800">Attention</Badge></TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Site 103</TableCell>
+                          <TableCell>15</TableCell>
+                          <TableCell>1.9%</TableCell>
+                          <TableCell>0.8 days</TableCell>
+                          <TableCell><Badge className="bg-green-100 text-green-800">Good</Badge></TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Site 104</TableCell>
+                          <TableCell>7</TableCell>
+                          <TableCell>5.2%</TableCell>
+                          <TableCell>4.1 days</TableCell>
+                          <TableCell><Badge className="bg-red-100 text-red-800">Alert</Badge></TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Site 105</TableCell>
+                          <TableCell>10</TableCell>
+                          <TableCell>2.7%</TableCell>
+                          <TableCell>1.4 days</TableCell>
+                          <TableCell><Badge className="bg-green-100 text-green-800">Good</Badge></TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Recent Safety Signals</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Signal ID</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Detected</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">SIG-042</TableCell>
+                          <TableCell>Lab Abnormality</TableCell>
+                          <TableCell>Elevated liver enzymes in 3 subjects</TableCell>
+                          <TableCell>2d ago</TableCell>
+                          <TableCell><Badge className="bg-yellow-100 text-yellow-800">Investigating</Badge></TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">SIG-041</TableCell>
+                          <TableCell>AE Pattern</TableCell>
+                          <TableCell>Increased GI events at Site 102</TableCell>
+                          <TableCell>3d ago</TableCell>
+                          <TableCell><Badge className="bg-blue-100 text-blue-800">Reviewing</Badge></TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">SIG-040</TableCell>
+                          <TableCell>Protocol Deviation</TableCell>
+                          <TableCell>Dosing schedule not followed in 2 subjects</TableCell>
+                          <TableCell>4d ago</TableCell>
+                          <TableCell><Badge className="bg-green-100 text-green-800">Resolved</Badge></TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {/* Side panel with alerts and recent activity */}
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Priority Alerts</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <Alert className="bg-red-50 border-red-200">
+                        <AlertCircleIcon className="h-4 w-4 text-red-600" />
+                        <AlertTitle className="text-red-800">Site 104 Performance</AlertTitle>
+                        <AlertDescription className="text-sm text-red-700">
+                          High query rate and slow response time. Review needed.
+                        </AlertDescription>
+                      </Alert>
+                      
+                      <Alert className="bg-amber-50 border-amber-200">
+                        <AlertCircleIcon className="h-4 w-4 text-amber-600" />
+                        <AlertTitle className="text-amber-800">Lab Data Signal</AlertTitle>
+                        <AlertDescription className="text-sm text-amber-700">
+                          3 subjects with CTCAE Grade 2+ liver enzyme elevations
+                        </AlertDescription>
+                      </Alert>
+                      
+                      <Alert className="bg-blue-50 border-blue-200">
+                        <AlertCircleIcon className="h-4 w-4 text-blue-600" />
+                        <AlertTitle className="text-blue-800">Enrollment Rate</AlertTitle>
+                        <AlertDescription className="text-sm text-blue-700">
+                          Overall enrollment is 12% below projection for Q2
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Recent Activity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex gap-3 items-start">
+                        <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="h-3 w-3 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Query Response</p>
+                          <p className="text-xs text-gray-500">Site 103 responded to Query ID: QRY-128</p>
+                          <p className="text-xs text-gray-400">10 minutes ago</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3 items-start">
+                        <div className="h-6 w-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                          <Server className="h-3 w-3 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Data Received</p>
+                          <p className="text-xs text-gray-500">New lab data imported - 42 records</p>
+                          <p className="text-xs text-gray-400">35 minutes ago</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3 items-start">
+                        <div className="h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <AlertCircleIcon className="h-3 w-3 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Signal Detected</p>
+                          <p className="text-xs text-gray-500">New safety signal created: SIG-042</p>
+                          <p className="text-xs text-gray-400">2 hours ago</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3 items-start">
+                        <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <Cpu className="h-3 w-3 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Analysis Complete</p>
+                          <p className="text-xs text-gray-500">Protocol compliance analysis finished</p>
+                          <p className="text-xs text-gray-400">3 hours ago</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+          
+          {/* Queries Tab */}
+          <TabsContent value="queries" className="flex-1">
+            <div className="flex justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <h2 className="text-xl font-bold text-blue-800">Clinical Queries</h2>
+                <Badge className="bg-blue-100 text-blue-800">24 Total</Badge>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" className="border-blue-200">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button>Create Query</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Query</DialogTitle>
+                      <DialogDescription>
+                        Create a new query to request clarification or additional information.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="query-site">Site</Label>
+                        <Select defaultValue="101">
+                          <SelectTrigger id="query-site">
+                            <SelectValue placeholder="Select site" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="101">Site 101</SelectItem>
+                            <SelectItem value="102">Site 102</SelectItem>
+                            <SelectItem value="103">Site 103</SelectItem>
+                            <SelectItem value="104">Site 104</SelectItem>
+                            <SelectItem value="105">Site 105</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="query-category">Category</Label>
+                        <Select defaultValue="lab">
+                          <SelectTrigger id="query-category">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="lab">Laboratory</SelectItem>
+                            <SelectItem value="ae">Adverse Event</SelectItem>
+                            <SelectItem value="consent">Informed Consent</SelectItem>
+                            <SelectItem value="eligibility">Eligibility Criteria</SelectItem>
+                            <SelectItem value="med">Concomitant Medication</SelectItem>
+                            <SelectItem value="protocol">Protocol Deviation</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="query-subject">Subject ID</Label>
+                        <Input id="query-subject" placeholder="Enter subject ID" />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="query-priority">Priority</Label>
+                        <Select defaultValue="medium">
+                          <SelectTrigger id="query-priority">
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="low">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="query-text">Query Text</Label>
+                        <Textarea id="query-text" placeholder="Enter your query..." className="min-h-24" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline">Cancel</Button>
+                      <Button>Create Query</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+            
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Badge className="bg-blue-600 text-white cursor-pointer">All (24)</Badge>
+              <Badge variant="outline" className="cursor-pointer">Open (8)</Badge>
+              <Badge variant="outline" className="cursor-pointer">Pending Response (5)</Badge>
+              <Badge variant="outline" className="cursor-pointer">Answered (3)</Badge>
+              <Badge variant="outline" className="cursor-pointer">Closed (16)</Badge>
+            </div>
+            
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Query ID</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Site</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium"><Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="link" className="p-0 h-auto font-medium">QRY-132</Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                          <DialogHeader>
+                            <DialogTitle>Query Details - QRY-132</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid grid-cols-2 gap-4 py-4">
+                            <div>
+                              <h4 className="text-sm font-medium mb-1">Query Details</h4>
+                              <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
+                                <div className="grid grid-cols-3 text-sm">
+                                  <span className="text-gray-500">Subject:</span>
+                                  <span className="col-span-2 font-medium">S101-004</span>
+                                </div>
+                                <div className="grid grid-cols-3 text-sm">
+                                  <span className="text-gray-500">Category:</span>
+                                  <span className="col-span-2 font-medium">Laboratory</span>
+                                </div>
+                                <div className="grid grid-cols-3 text-sm">
+                                  <span className="text-gray-500">Site:</span>
+                                  <span className="col-span-2 font-medium">Site 101</span>
+                                </div>
+                                <div className="grid grid-cols-3 text-sm">
+                                  <span className="text-gray-500">Created:</span>
+                                  <span className="col-span-2">April 5, 2025</span>
+                                </div>
+                                <div className="grid grid-cols-3 text-sm">
+                                  <span className="text-gray-500">Status:</span>
+                                  <span className="col-span-2"><Badge className="bg-amber-100 text-amber-800">Pending Response</Badge></span>
+                                </div>
+                                <div className="grid grid-cols-3 text-sm">
+                                  <span className="text-gray-500">Priority:</span>
+                                  <span className="col-span-2"><Badge className="bg-red-100 text-red-800">High</Badge></span>
+                                </div>
+                                <div className="grid grid-cols-3 text-sm">
+                                  <span className="text-gray-500">Due Date:</span>
+                                  <span className="col-span-2 font-medium text-red-600">April 8, 2025 (Today)</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-medium mb-1">Query Text</h4>
+                              <div className="border rounded-lg p-3 text-sm bg-gray-50">
+                                <p>Subject S101-004 has ALT value of 3.2× ULN (128 U/L) at Visit 4, which is higher than the previous 0.9× ULN (36 U/L) at Visit 3. Please confirm this value and provide any additional context regarding this significant increase.</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="py-2">
+                            <h4 className="text-sm font-medium mb-2">Communication Thread</h4>
+                            <div className="space-y-3 max-h-60 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                              <div className="border-l-2 border-blue-500 pl-3 py-1">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-medium">Central Monitor (System)</span>
+                                  <span className="text-gray-500">April 5, 2025 - 10:32 AM</span>
+                                </div>
+                                <p className="text-sm">Query opened - The laboratory value is significantly elevated from previous visit. Please investigate.</p>
+                              </div>
+                              
+                              <div className="border-l-2 border-blue-500 pl-3 py-1">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-medium">Sarah Johnson (Medical Monitor)</span>
+                                  <span className="text-gray-500">April 5, 2025 - 11:15 AM</span>
+                                </div>
+                                <p className="text-sm">Requesting additional information from site. This elevation meets the protocol-defined CTCAE Grade 2 criteria and requires follow-up.</p>
+                              </div>
+                              
+                              <div className="border-l-2 border-yellow-500 pl-3 py-1">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-medium">Central Monitor.AI</span>
+                                  <span className="text-gray-500">April 5, 2025 - 2:20 PM</span>
+                                </div>
+                                <p className="text-sm">AI Notification: Similar ALT elevations observed in 2 other subjects at Site 101. Recommend checking for batch effect in lab processing.</p>
+                              </div>
+                              
+                              <div className="border-l-2 border-green-500 pl-3 py-1">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-medium">Michael Wong (CRA)</span>
+                                  <span className="text-gray-500">April 6, 2025 - 9:45 AM</span>
+                                </div>
+                                <p className="text-sm">Contacted site coordinator. They are reviewing the lab results and will provide follow-up information tomorrow.</p>
+                              </div>
+                              
+                              <div className="border-l-2 border-purple-500 pl-3 py-1">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-medium">Dr. Lisa Chen (Principal Investigator)</span>
+                                  <span className="text-gray-500">April 7, 2025 - 4:10 PM</span>
+                                </div>
+                                <p className="text-sm">We've ordered a retest for this subject. Initial investigation shows patient reported use of acetaminophen for headache prior to lab draw, which may be contributing to elevation. Will send retest results when available.</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-3 pt-3">
+                            <h4 className="text-sm font-medium">Add Response</h4>
+                            <Textarea placeholder="Type your response..." className="min-h-20" />
+                          </div>
+                          
+                          <DialogFooter className="flex justify-between items-center">
+                            <Select defaultValue="pending">
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Update status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending Response</SelectItem>
+                                <SelectItem value="answered">Answered</SelectItem>
+                                <SelectItem value="closed">Closed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="space-x-2">
+                              <Button variant="outline">Cancel</Button>
+                              <Button>Submit Response</Button>
+                            </div>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog></TableCell>
+                      <TableCell>S101-004</TableCell>
+                      <TableCell>Laboratory</TableCell>
+                      <TableCell>Site 101</TableCell>
+                      <TableCell>April 5, 2025</TableCell>
+                      <TableCell><Badge className="bg-amber-100 text-amber-800">Pending</Badge></TableCell>
+                      <TableCell><Badge className="bg-red-100 text-red-800">High</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">QRY-131</TableCell>
+                      <TableCell>S104-008</TableCell>
+                      <TableCell>Adverse Event</TableCell>
+                      <TableCell>Site 104</TableCell>
+                      <TableCell>April 4, 2025</TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-800">Open</Badge></TableCell>
+                      <TableCell><Badge className="bg-amber-100 text-amber-800">Medium</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">QRY-130</TableCell>
+                      <TableCell>S102-011</TableCell>
+                      <TableCell>Protocol Deviation</TableCell>
+                      <TableCell>Site 102</TableCell>
+                      <TableCell>April 3, 2025</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Answered</Badge></TableCell>
+                      <TableCell><Badge className="bg-red-100 text-red-800">High</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">QRY-129</TableCell>
+                      <TableCell>S103-002</TableCell>
+                      <TableCell>Eligibility Criteria</TableCell>
+                      <TableCell>Site 103</TableCell>
+                      <TableCell>April 1, 2025</TableCell>
+                      <TableCell><Badge className="bg-gray-100 text-gray-800">Closed</Badge></TableCell>
+                      <TableCell><Badge className="bg-amber-100 text-amber-800">Medium</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">QRY-128</TableCell>
+                      <TableCell>S103-006</TableCell>
+                      <TableCell>Laboratory</TableCell>
+                      <TableCell>Site 103</TableCell>
+                      <TableCell>March 30, 2025</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Answered</Badge></TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-800">Low</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                
+                <div className="flex items-center justify-between px-2 py-4">
+                  <div className="text-sm text-gray-500">
+                    Showing <span className="font-medium">1</span> to <span className="font-medium">5</span> of <span className="font-medium">24</span> results
+                  </div>
+                  <div className="flex space-x-1">
+                    <Button variant="outline" size="sm" disabled>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="bg-blue-50">1</Button>
+                    <Button variant="outline" size="sm">2</Button>
+                    <Button variant="outline" size="sm">3</Button>
+                    <Button variant="outline" size="sm">4</Button>
+                    <Button variant="outline" size="sm">5</Button>
+                    <Button variant="outline" size="sm">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="flex-1">
+            <div className="flex justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <h2 className="text-xl font-bold text-blue-800">Monitoring Tasks</h2>
+                <Badge className="bg-blue-100 text-blue-800">18 Total</Badge>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" className="border-blue-200">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button>Create Task</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Task</DialogTitle>
+                      <DialogDescription>
+                        Create a new task for site monitoring activities.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="task-title">Task Title</Label>
+                        <Input id="task-title" placeholder="Enter task title" />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="task-assignee">Assignee</Label>
+                        <Select defaultValue="cra1">
+                          <SelectTrigger id="task-assignee">
+                            <SelectValue placeholder="Select assignee" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cra1">Michael Wong (CRA)</SelectItem>
+                            <SelectItem value="cra2">Jennifer Lee (CRA)</SelectItem>
+                            <SelectItem value="dm1">Robert Chen (Data Manager)</SelectItem>
+                            <SelectItem value="mm1">Sarah Johnson (Medical Monitor)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="task-priority">Priority</Label>
+                          <Select defaultValue="medium">
+                            <SelectTrigger id="task-priority">
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="low">Low</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="task-due-date">Due Date</Label>
+                          <Input id="task-due-date" type="date" />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="task-description">Description</Label>
+                        <Textarea id="task-description" placeholder="Enter task description..." className="min-h-24" />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Related Items</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="task-related-query" />
+                            <Label htmlFor="task-related-query" className="text-sm">Link to Query #QRY-132</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="task-related-site" />
+                            <Label htmlFor="task-related-site" className="text-sm">Link to Site 101</Label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline">Cancel</Button>
+                      <Button>Create Task</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+            
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Badge className="bg-blue-600 text-white cursor-pointer">All (18)</Badge>
+              <Badge variant="outline" className="cursor-pointer">Open (7)</Badge>
+              <Badge variant="outline" className="cursor-pointer">In Progress (4)</Badge>
+              <Badge variant="outline" className="cursor-pointer">Under Review (2)</Badge>
+              <Badge variant="outline" className="cursor-pointer">Completed (5)</Badge>
+            </div>
+            
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task ID</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Assignee</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Related Items</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="link" className="p-0 h-auto font-medium">TSK-045</Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-3xl">
+                            <DialogHeader>
+                              <DialogTitle>Task Details - TSK-045</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid grid-cols-2 gap-4 py-4">
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Task Details</h4>
+                                <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
+                                  <div className="grid grid-cols-3 text-sm">
+                                    <span className="text-gray-500">Title:</span>
+                                    <span className="col-span-2 font-medium">Review elevated ALT values at Site 101</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 text-sm">
+                                    <span className="text-gray-500">Assignee:</span>
+                                    <span className="col-span-2 font-medium">Sarah Johnson (Medical Monitor)</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 text-sm">
+                                    <span className="text-gray-500">Created:</span>
+                                    <span className="col-span-2">April 5, 2025</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 text-sm">
+                                    <span className="text-gray-500">Due Date:</span>
+                                    <span className="col-span-2 font-medium text-red-600">April 8, 2025 (Today)</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 text-sm">
+                                    <span className="text-gray-500">Status:</span>
+                                    <span className="col-span-2"><Badge className="bg-blue-100 text-blue-800">In Progress</Badge></span>
+                                  </div>
+                                  <div className="grid grid-cols-3 text-sm">
+                                    <span className="text-gray-500">Priority:</span>
+                                    <span className="col-span-2"><Badge className="bg-red-100 text-red-800">High</Badge></span>
+                                  </div>
+                                  <div className="grid grid-cols-3 text-sm">
+                                    <span className="text-gray-500">Related Items:</span>
+                                    <div className="col-span-2">
+                                      <div className="flex space-x-1 flex-wrap">
+                                        <Badge variant="outline" className="bg-gray-100">
+                                          Query QRY-132
+                                        </Badge>
+                                        <Badge variant="outline" className="bg-gray-100">
+                                          Site 101
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Task Description</h4>
+                                <div className="border rounded-lg p-3 text-sm bg-gray-50">
+                                  <p>Review all laboratory ALT values at Site 101 for the past 3 months. There appears to be a potential trend of elevated values that requires medical review. Compare to other sites and determine if this is site-specific or potentially treatment-related.</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="py-2">
+                              <h4 className="text-sm font-medium mb-2">Communication Thread</h4>
+                              <div className="space-y-3 max-h-60 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                                <div className="border-l-2 border-blue-500 pl-3 py-1">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-medium">Central Monitor (System)</span>
+                                    <span className="text-gray-500">April 5, 2025 - 10:35 AM</span>
+                                  </div>
+                                  <p className="text-sm">Task created based on laboratory data trends at Site 101.</p>
+                                </div>
+                                
+                                <div className="border-l-2 border-yellow-500 pl-3 py-1">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-medium">Central Monitor.AI</span>
+                                    <span className="text-gray-500">April 5, 2025 - 10:36 AM</span>
+                                  </div>
+                                  <p className="text-sm">AI Analysis: 5 of 12 subjects at Site 101 show ALT elevations {'>'}2× ULN within the past 8 weeks, compared to 2 of 38 subjects at other sites combined. Statistical significance: p=0.008.</p>
+                                </div>
+                                
+                                <div className="border-l-2 border-green-500 pl-3 py-1">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-medium">Sarah Johnson (Medical Monitor)</span>
+                                    <span className="text-gray-500">April 6, 2025 - 2:20 PM</span>
+                                  </div>
+                                  <p className="text-sm">I've started reviewing the data. Initial assessment suggests a potential lab processing issue rather than a treatment effect, as other liver enzymes are not consistently elevated. I've requested the lab certificates and calibration records from the site's local lab.</p>
+                                </div>
+                                
+                                <div className="border-l-2 border-purple-500 pl-3 py-1">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-medium">Michael Wong (CRA)</span>
+                                    <span className="text-gray-500">April 7, 2025 - 11:05 AM</span>
+                                  </div>
+                                  <p className="text-sm">During my call with Site 101 today, they mentioned changing their lab equipment in mid-March. This might be relevant to the observed trend.</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-3 pt-3">
+                              <h4 className="text-sm font-medium">Add Comment</h4>
+                              <Textarea placeholder="Type your comment..." className="min-h-20" />
+                            </div>
+                            
+                            <DialogFooter className="flex justify-between items-center">
+                              <Select defaultValue="in_progress">
+                                <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Update status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="open">Open</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="under_review">Under Review</SelectItem>
+                                  <SelectItem value="completed">Completed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <div className="space-x-2">
+                                <Button variant="outline">Cancel</Button>
+                                <Button>Submit Comment</Button>
+                              </div>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </TableCell>
+                      <TableCell>Review elevated ALT values at Site 101</TableCell>
+                      <TableCell>Sarah Johnson</TableCell>
+                      <TableCell className="text-red-600">April 8, 2025</TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-800">In Progress</Badge></TableCell>
+                      <TableCell><Badge className="bg-red-100 text-red-800">High</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">QRY-132</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">TSK-044</TableCell>
+                      <TableCell>Verify protocol compliance at Site 104</TableCell>
+                      <TableCell>Michael Wong</TableCell>
+                      <TableCell>April 10, 2025</TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-800">Open</Badge></TableCell>
+                      <TableCell><Badge className="bg-amber-100 text-amber-800">Medium</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">Site 104</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">TSK-043</TableCell>
+                      <TableCell>Evaluate enrollment delays at Site 102</TableCell>
+                      <TableCell>Jennifer Lee</TableCell>
+                      <TableCell>April 15, 2025</TableCell>
+                      <TableCell><Badge className="bg-purple-100 text-purple-800">Under Review</Badge></TableCell>
+                      <TableCell><Badge className="bg-amber-100 text-amber-800">Medium</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">Site 102</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">TSK-042</TableCell>
+                      <TableCell>Review safety narratives for SAEs</TableCell>
+                      <TableCell>Sarah Johnson</TableCell>
+                      <TableCell>April 5, 2025</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                      <TableCell><Badge className="bg-red-100 text-red-800">High</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">QRY-128</Badge>
+                          <Badge variant="outline" className="text-xs">QRY-129</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium">TSK-041</TableCell>
+                      <TableCell>Prepare monthly safety monitoring report</TableCell>
+                      <TableCell>Robert Chen</TableCell>
+                      <TableCell>April 20, 2025</TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-800">In Progress</Badge></TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-800">Low</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">Report</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                
+                <div className="flex items-center justify-between px-2 py-4">
+                  <div className="text-sm text-gray-500">
+                    Showing <span className="font-medium">1</span> to <span className="font-medium">5</span> of <span className="font-medium">18</span> results
+                  </div>
+                  <div className="flex space-x-1">
+                    <Button variant="outline" size="sm" disabled>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="bg-blue-50">1</Button>
+                    <Button variant="outline" size="sm">2</Button>
+                    <Button variant="outline" size="sm">3</Button>
+                    <Button variant="outline" size="sm">4</Button>
+                    <Button variant="outline" size="sm">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Logs Tab */}
+          <TabsContent value="logs" className="flex-1">
+            <div className="flex justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <h2 className="text-xl font-bold text-blue-800">Event Monitoring Log</h2>
+                <Badge className="bg-blue-100 text-blue-800">42 Events</Badge>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" className="border-blue-200">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export Log
+                </Button>
+                <Button variant="outline" className="border-blue-200">
+                  <FileJson className="h-4 w-4 mr-2" />
+                  JSON
+                </Button>
+              </div>
+            </div>
+            
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>Trigger ID</TableHead>
+                      <TableHead>Event Type</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Domains</TableHead>
+                      <TableHead>Items Created</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 8, 2025 08:32</TableCell>
+                      <TableCell>EVT-215</TableCell>
+                      <TableCell>Data Import</TableCell>
+                      <TableCell>New laboratory data received from central lab</TableCell>
+                      <TableCell>LB</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">QRY-132</Badge>
+                          <Badge variant="outline" className="w-fit">TSK-045</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 7, 2025 16:15</TableCell>
+                      <TableCell>EVT-214</TableCell>
+                      <TableCell>Query Response</TableCell>
+                      <TableCell>Site 103 responded to protocol deviation query</TableCell>
+                      <TableCell>DV</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">TSK-043</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 7, 2025 10:23</TableCell>
+                      <TableCell>EVT-213</TableCell>
+                      <TableCell>Scheduled</TableCell>
+                      <TableCell>Weekly site enrollment metrics analysis</TableCell>
+                      <TableCell>DM, SV</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">QRY-131</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 6, 2025 09:00</TableCell>
+                      <TableCell>EVT-212</TableCell>
+                      <TableCell>Scheduled</TableCell>
+                      <TableCell>Daily protocol compliance check</TableCell>
+                      <TableCell>ALL</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">No items</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 5, 2025 14:42</TableCell>
+                      <TableCell>EVT-211</TableCell>
+                      <TableCell>Data Import</TableCell>
+                      <TableCell>New adverse event data from Site 102</TableCell>
+                      <TableCell>AE</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">QRY-130</Badge>
+                          <Badge variant="outline" className="w-fit">TSK-042</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 5, 2025 10:35</TableCell>
+                      <TableCell>EVT-210</TableCell>
+                      <TableCell>Manual</TableCell>
+                      <TableCell>Medical monitor initiated lab trend analysis</TableCell>
+                      <TableCell>LB</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">TSK-045</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 4, 2025 16:20</TableCell>
+                      <TableCell>EVT-209</TableCell>
+                      <TableCell>Threshold</TableCell>
+                      <TableCell>Site 104 exceeded query threshold ({'>'}5%)</TableCell>
+                      <TableCell>ALL</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">TSK-044</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="font-medium whitespace-nowrap">April 3, 2025 09:00</TableCell>
+                      <TableCell>EVT-208</TableCell>
+                      <TableCell>Scheduled</TableCell>
+                      <TableCell>Daily protocol compliance check</TableCell>
+                      <TableCell>ALL</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col space-y-1">
+                          <Badge variant="outline" className="w-fit">QRY-129</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-800">Completed</Badge></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                
+                <div className="flex items-center justify-between px-2 py-4">
+                  <div className="text-sm text-gray-500">
+                    Showing <span className="font-medium">1</span> to <span className="font-medium">8</span> of <span className="font-medium">42</span> results
+                  </div>
+                  <div className="flex space-x-1">
+                    <Button variant="outline" size="sm" disabled>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="bg-blue-50">1</Button>
+                    <Button variant="outline" size="sm">2</Button>
+                    <Button variant="outline" size="sm">3</Button>
+                    <Button variant="outline" size="sm">4</Button>
+                    <Button variant="outline" size="sm">5</Button>
+                    <Button variant="outline" size="sm">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Workflow Dependencies Tab */}
+          <TabsContent value="workflows" className="flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-blue-800">Agent Workflow Management</h2>
+            </div>
+
+            <Card className="border-blue-100 mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium text-blue-800">
+                  Configure Agent Dependencies
+                </CardTitle>
+                <CardDescription>
+                  Define how Central Monitor AI agents work together. Use sequential mode to ensure agents run in a specific order, or independent mode for parallel execution.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WorkflowDependencyManager 
+                  aiComponent="CentralMonitorAI" 
+                  allowedAgentTypes={[
+                    AgentType.SITE_MONITOR,
+                    AgentType.SIGNAL_DETECTION,
+                    AgentType.QUERY_MANAGER,
+                    AgentType.TASK_MANAGER
+                  ]} 
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-blue-800">Settings Configuration</h2>
+              <Button 
+                onClick={() => {
+                  toast({
+                    title: "Settings saved",
+                    description: "Your configuration has been updated successfully.",
+                  })
+                }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Save Settings
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-medium mb-4">Monitoring Settings</h3>
+                <div className="border p-4 rounded-lg space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="active-monitoring" className="font-medium">Active Monitoring</Label>
+                      <Switch 
+                        id="active-monitoring" 
+                        checked={centralSettings.activeMonitoring} 
+                        onCheckedChange={(checked) => {
+                          setCentralSettings({
+                            ...centralSettings,
+                            activeMonitoring: checked,
+                            // If active monitoring is enabled, disable scheduled monitoring
+                            scheduledMonitoring: checked ? false : centralSettings.scheduledMonitoring
+                          });
+                        }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500">Enables real-time monitoring of incoming data and events</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="scheduled-monitoring" className="font-medium">Scheduled Monitoring</Label>
+                      <Switch 
+                        id="scheduled-monitoring" 
+                        checked={centralSettings.scheduledMonitoring}
+                        disabled={centralSettings.activeMonitoring}
+                        onCheckedChange={(checked) => {
+                          setCentralSettings({
+                            ...centralSettings,
+                            scheduledMonitoring: checked,
+                            // If scheduled monitoring is enabled, disable active monitoring
+                            activeMonitoring: checked ? false : centralSettings.activeMonitoring
+                          });
+                        }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500">Run analysis on a defined schedule</p>
+                    {centralSettings.activeMonitoring && 
+                      <p className="text-xs text-amber-600">Disabled while Active Monitoring is enabled</p>
+                    }
+                  </div>
+                  
+                  <div className="space-y-2 pl-6">
+                    <Label className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Schedule Frequency</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="schedule-daily" 
+                          checked={centralSettings.scheduleFrequency?.daily || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              scheduleFrequency: {
+                                ...centralSettings.scheduleFrequency,
+                                daily: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="schedule-daily" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Daily</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="schedule-weekly" 
+                          checked={centralSettings.scheduleFrequency?.weekly || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              scheduleFrequency: {
+                                ...centralSettings.scheduleFrequency,
+                                weekly: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="schedule-weekly" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Weekly</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="schedule-biweekly" 
+                          checked={centralSettings.scheduleFrequency?.biweekly || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              scheduleFrequency: {
+                                ...centralSettings.scheduleFrequency,
+                                biweekly: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="schedule-biweekly" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Bi-weekly</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="schedule-monthly" 
+                          checked={centralSettings.scheduleFrequency?.monthly || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              scheduleFrequency: {
+                                ...centralSettings.scheduleFrequency,
+                                monthly: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="schedule-monthly" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Monthly</Label>
+                      </div>
+                    </div>
+                    {centralSettings.activeMonitoring && 
+                      <p className="text-xs text-amber-600">Scheduling options disabled while Active Monitoring is enabled</p>
+                    }
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="event-triggered" className="font-medium">Event-Triggered Monitoring</Label>
+                      <Switch 
+                        id="event-triggered" 
+                        checked={centralSettings.eventTriggered}
+                        disabled={centralSettings.activeMonitoring}
+                        onCheckedChange={(checked) => {
+                          setCentralSettings({
+                            ...centralSettings,
+                            eventTriggered: checked
+                          });
+                        }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500">Run analysis when specific events occur</p>
+                    {centralSettings.activeMonitoring && 
+                      <p className="text-xs text-amber-600">Disabled while Active Monitoring is enabled</p>
+                    }
+                  </div>
+                  
+                  <div className="space-y-2 pl-6">
+                    <Label className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Trigger Events</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="trigger-data-import" 
+                          checked={centralSettings.triggerEvents?.dataImport || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              triggerEvents: {
+                                ...centralSettings.triggerEvents,
+                                dataImport: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="trigger-data-import" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Data Import</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="trigger-query-response" 
+                          checked={centralSettings.triggerEvents?.queryResponse || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              triggerEvents: {
+                                ...centralSettings.triggerEvents,
+                                queryResponse: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="trigger-query-response" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Query Response</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="trigger-site-add" 
+                          checked={centralSettings.triggerEvents?.siteAddition || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              triggerEvents: {
+                                ...centralSettings.triggerEvents,
+                                siteAddition: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="trigger-site-add" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Site Addition</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="trigger-subject-add" 
+                          checked={centralSettings.triggerEvents?.subjectAddition || false}
+                          disabled={centralSettings.activeMonitoring}
+                          onCheckedChange={(checked) => {
+                            setCentralSettings({
+                              ...centralSettings,
+                              triggerEvents: {
+                                ...centralSettings.triggerEvents,
+                                subjectAddition: !!checked
+                              }
+                            });
+                          }}
+                        />
+                        <Label htmlFor="trigger-subject-add" className={centralSettings.activeMonitoring ? "text-sm text-gray-400" : "text-sm"}>Subject Addition</Label>
+                      </div>
+                    </div>
+                    {centralSettings.activeMonitoring && 
+                      <p className="text-xs text-amber-600">Event triggers disabled while Active Monitoring is enabled</p>
+                    }
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">Notification Settings</h3>
+                <div className="border p-4 rounded-lg space-y-4">
+                  <div className="space-y-2">
+                    <Label className="font-medium">Notification Types</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="notify-query" defaultChecked />
+                        <Label htmlFor="notify-query" className="text-sm">New Queries</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="notify-task" defaultChecked />
+                        <Label htmlFor="notify-task" className="text-sm">Task Assignments</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="notify-safety" defaultChecked />
+                        <Label htmlFor="notify-safety" className="text-sm">Safety Signals</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="notify-protocol" defaultChecked />
+                        <Label htmlFor="notify-protocol" className="text-sm">Protocol Deviations</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="notify-data" defaultChecked />
+                        <Label htmlFor="notify-data" className="text-sm">Data Imports</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="notify-enrollment" defaultChecked />
+                        <Label htmlFor="notify-enrollment" className="text-sm">Enrollment Updates</Label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="font-medium">Delivery Methods</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="deliver-email" defaultChecked />
+                        <Label htmlFor="deliver-email" className="text-sm">Email</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="deliver-sms" />
+                        <Label htmlFor="deliver-sms" className="text-sm">SMS</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="deliver-app" defaultChecked />
+                        <Label htmlFor="deliver-app" className="text-sm">In-App</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="deliver-slack" />
+                        <Label htmlFor="deliver-slack" className="text-sm">Slack</Label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email-recipients" className="font-medium">Email Recipients</Label>
+                    <Textarea id="email-recipients" defaultValue="sarah.johnson@example.com, robert.chen@example.com" className="min-h-20" />
+                  </div>
+                </div>
+                
+                <h3 className="text-lg font-medium mb-4 mt-6">Rule-Based Detection</h3>
+                <div className="border p-4 rounded-lg space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="rule-protocol-deviation" className="font-medium">Protocol Deviation Detection</Label>
+                      <Switch id="rule-protocol-deviation" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Automatically detect protocol deviations based on predefined rules</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="rule-safety-signal" className="font-medium">Safety Signal Detection</Label>
+                      <Switch id="rule-safety-signal" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Detect potential safety signals from AEs and labs</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="rule-data-quality" className="font-medium">Data Quality Checks</Label>
+                      <Switch id="rule-data-quality" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Run automated data quality and consistency checks</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-2">
+                        <Label htmlFor="rule-site-performance" className="font-medium">Site Performance Metrics</Label>
+                        <Badge className="bg-gray-100 text-gray-700">Disabled</Badge>
+                      </div>
+                      <Switch id="rule-site-performance" />
+                    </div>
+                    <p className="text-sm text-gray-500">Track and alert on site performance metrics</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">AI Configuration</h3>
+                <div className="border p-4 rounded-lg space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="ai-analysis" className="font-medium">AI-Enhanced Analysis</Label>
+                      <Switch id="ai-analysis" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Uses AI to enhance signal detection and data analysis</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="ai-suggestions" className="font-medium">AI-Generated Suggestions</Label>
+                      <Switch id="ai-suggestions" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Provides AI-generated suggestions for queries and tasks</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="ai-prediction" className="font-medium">Predictive Analytics</Label>
+                      <Switch id="ai-prediction" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Uses historical data to predict potential issues</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-model" className="font-medium">AI Provider</Label>
+                    <Select defaultValue="openai">
+                      <SelectTrigger id="ai-model">
+                        <SelectValue placeholder="Select AI provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI GPT-4o</SelectItem>
+                        <SelectItem value="grok">Grok 2</SelectItem>
+                        <SelectItem value="claude">Anthropic Claude</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">Compliance Configuration</h3>
+                <div className="border p-4 rounded-lg space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="compliance-gdpr" className="font-medium">GDPR Compliance</Label>
+                      <Switch id="compliance-gdpr" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Ensures data handling complies with GDPR requirements</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="compliance-hipaa" className="font-medium">HIPAA Compliance</Label>
+                      <Switch id="compliance-hipaa" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Ensures data handling complies with HIPAA requirements</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="compliance-21cfr" className="font-medium">21 CFR Part 11 Compliance</Label>
+                      <Switch id="compliance-21cfr" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Ensures system meets 21 CFR Part 11 requirements</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="compliance-audit" className="font-medium">Audit Trail</Label>
+                      <Switch id="compliance-audit" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Maintains comprehensive audit trail of all activities</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="compliance-eicsig" className="font-medium">Electronic Signatures</Label>
+                      <Switch id="compliance-eicsig" defaultChecked />
+                    </div>
+                    <p className="text-sm text-gray-500">Enables FDA-compliant electronic signatures</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+          
+          {/* Event Monitoring Tab */}
+          <TabsContent value="event-monitoring" className="flex-1">
+            <div className="flex justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <h2 className="text-xl font-bold text-blue-800">Event Monitoring</h2>
+                <Badge className="bg-blue-100 text-blue-800">Real-time</Badge>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" className="border-blue-200">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Report
+                </Button>
+              </div>
+            </div>
+            
+            <Card className="mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Current Monitoring Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                    <div className="text-sm text-green-800 font-medium">Protocol Monitoring</div>
+                    <div className="mt-1 flex items-center">
+                      <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <span className="text-green-600 text-sm">Active</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                    <div className="text-sm text-green-800 font-medium">Data Quality</div>
+                    <div className="mt-1 flex items-center">
+                      <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <span className="text-green-600 text-sm">Active</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                    <div className="text-sm text-green-800 font-medium">Safety Signal</div>
+                    <div className="mt-1 flex items-center">
+                      <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <span className="text-green-600 text-sm">Active</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
+                    <div className="text-sm text-amber-800 font-medium">Enrollment Tracking</div>
+                    <div className="mt-1 flex items-center">
+                      <div className="h-2 w-2 rounded-full bg-amber-500 mr-2"></div>
+                      <span className="text-amber-600 text-sm">Paused</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Monitoring Events</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3 pb-3 border-b">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
+                        <Server className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">Laboratory Data Import</p>
+                          <span className="text-xs text-gray-500">Today, 08:32 AM</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">287 new laboratory results imported from central lab</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge variant="outline" className="bg-blue-50">EVT-215</Badge>
+                          <Badge variant="outline" className="bg-blue-50">Central Lab</Badge>
+                          <Badge variant="outline" className="bg-blue-50">LB Domain</Badge>
+                        </div>
+                        <div className="mt-2">
+                          <Button variant="link" className="h-auto p-0 text-blue-600">View Details</Button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-3 pb-3 border-b">
+                      <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-1">
+                        <AlertCircleIcon className="h-4 w-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">Safety Signal Detected</p>
+                          <span className="text-xs text-gray-500">Today, 08:45 AM</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">Potential liver enzyme elevation pattern detected at Site 101</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge variant="outline" className="bg-amber-50">SIG-042</Badge>
+                          <Badge variant="outline" className="bg-amber-50">Site 101</Badge>
+                          <Badge variant="outline" className="bg-amber-50">High Priority</Badge>
+                        </div>
+                        <div className="mt-2">
+                          <Button variant="link" className="h-auto p-0 text-blue-600">View Details</Button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-3 pb-3 border-b">
+                      <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-1">
+                        <Clock className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">Scheduled Protocol Check</p>
+                          <span className="text-xs text-gray-500">Today, 09:00 AM</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">Daily automated protocol compliance check completed</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge variant="outline" className="bg-purple-50">EVT-216</Badge>
+                          <Badge variant="outline" className="bg-purple-50">Scheduled</Badge>
+                          <Badge variant="outline" className="bg-purple-50">All Domains</Badge>
+                        </div>
+                        <div className="flex items-center mt-2 text-sm text-green-600">
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          No issues detected
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-3 pb-3">
+                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-1">
+                        <Check className="h-4 w-4 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">Query Response Received</p>
+                          <span className="text-xs text-gray-500">Yesterday, 16:15 PM</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">Site 103 responded to protocol deviation query QRY-130</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge variant="outline" className="bg-green-50">EVT-214</Badge>
+                          <Badge variant="outline" className="bg-green-50">Site 103</Badge>
+                          <Badge variant="outline" className="bg-green-50">QRY-130</Badge>
+                        </div>
+                        <div className="mt-2">
+                          <Button variant="link" className="h-auto p-0 text-blue-600">View Response</Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Monitoring Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Events Today</span>
+                          <span className="text-sm">3</span>
+                        </div>
+                        <Progress value={30} className="h-2" />
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Queries Generated</span>
+                          <span className="text-sm">1</span>
+                        </div>
+                        <Progress value={20} className="h-2" />
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Tasks Created</span>
+                          <span className="text-sm">2</span>
+                        </div>
+                        <Progress value={40} className="h-2" />
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Signals Detected</span>
+                          <span className="text-sm">1</span>
+                        </div>
+                        <Progress value={20} className="h-2" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Monitoring Schedule</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <div className="flex items-center">
+                          <div className="h-2 w-2 rounded-full bg-blue-500 mr-2"></div>
+                          <span>Daily Protocol Check</span>
+                        </div>
+                        <span className="text-gray-500">09:00 AM</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <div className="flex items-center">
+                          <div className="h-2 w-2 rounded-full bg-purple-500 mr-2"></div>
+                          <span>Site Performance Report</span>
+                        </div>
+                        <span className="text-gray-500">Mon, 10:00 AM</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <div className="flex items-center">
+                          <div className="h-2 w-2 rounded-full bg-amber-500 mr-2"></div>
+                          <span>Safety Data Review</span>
+                        </div>
+                        <span className="text-gray-500">Tue, 2:00 PM</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <div className="flex items-center">
+                          <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
+                          <span>Query Status Review</span>
+                        </div>
+                        <span className="text-gray-500">Wed, 11:00 AM</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <div className="h-2 w-2 rounded-full bg-red-500 mr-2"></div>
+                          <span>Enrollment Analysis</span>
+                        </div>
+                        <span className="text-gray-500">Fri, 1:00 PM</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Central Monitor Bot - Explicitly positioned */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <CentralMonitorBot 
+          trialName={trials?.find(t => t.id === selectedTrial)?.title}
+          trialId={selectedTrial}
+          isAgentMode={isAgentMode}
+          setIsAgentMode={setIsAgentMode}
+        />
+      </div>
+    </AppLayout>
+  );
+}

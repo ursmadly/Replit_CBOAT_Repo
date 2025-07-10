@@ -1,0 +1,315 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Grid pattern background for AI Agents */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Super Agent Styles - Data Manager.AI and Central Monitor.AI */
+.agent-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1.25rem;
+  border-radius: 16px;
+  background: rgba(15, 15, 25, 0.9);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
+  margin-bottom: 1rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.agent-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 1;
+}
+
+.data-manager-agent::before {
+  background: linear-gradient(to right, #0cebeb, #20e3b2, #29ffc6);
+}
+
+.monitor-agent::before {
+  background: linear-gradient(to right, #ff416c, #ff4b2b);
+}
+
+.agent-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+}
+
+.agent-icon-wrapper {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  margin-right: 1.5rem;
+}
+
+.hexagon-frame, .diamond-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hexagon-frame::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(32, 227, 178, 0.1);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.diamond-frame::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 65, 108, 0.1);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.glow-effect {
+  position: absolute;
+  width: 150%;
+  height: 150%;
+  border-radius: 50%;
+  filter: blur(15px);
+  opacity: 0.5;
+  animation: pulse-glow 3s infinite;
+}
+
+.teal-glow {
+  background: radial-gradient(circle, rgba(32, 227, 178, 0.6) 0%, rgba(12, 235, 235, 0) 70%);
+}
+
+.crimson-glow {
+  background: radial-gradient(circle, rgba(255, 65, 108, 0.6) 0%, rgba(255, 75, 43, 0) 70%);
+}
+
+.agent-icon {
+  position: relative;
+  font-size: 2.5rem;
+  z-index: 2;
+}
+
+.teal-icon {
+  color: #20e3b2;
+  filter: drop-shadow(0 0 8px rgba(32, 227, 178, 0.7));
+}
+
+.crimson-icon {
+  color: #ff416c;
+  filter: drop-shadow(0 0 8px rgba(255, 65, 108, 0.7));
+}
+
+.agent-details {
+  flex: 1;
+}
+
+.agent-title {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.highlight {
+  position: relative;
+  display: inline-block;
+}
+
+.highlight.teal {
+  background: linear-gradient(to right, #0cebeb, #20e3b2);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.highlight.crimson {
+  background: linear-gradient(to right, #ff416c, #ff4b2b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.agent-subtitle {
+  font-size: 0.95rem;
+  opacity: 0.8;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.agent-status {
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background: #555;
+}
+
+.status-dot.active {
+  background: #4ade80;
+  box-shadow: 0 0 0 rgba(74, 222, 128, 0.4);
+  animation: pulse 2s infinite;
+}
+
+.data-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.6;
+  background-image: radial-gradient(rgba(32, 227, 178, 0.4) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+.scan-beam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, rgba(255, 65, 108, 0), rgba(255, 65, 108, 1), rgba(255, 65, 108, 0));
+  animation: scan 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+}
+
+@keyframes scan {
+  0% {
+    top: 0;
+    opacity: 0.8;
+  }
+  50% {
+    top: 100%;
+    opacity: 0.6;
+  }
+  50.1% {
+    top: 0;
+    opacity: 0;
+  }
+  100% {
+    top: 0;
+    opacity: 0.8;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+/* CSR.AI specific styles */
+.csr-agent::before {
+  background: linear-gradient(to right, #3B82F6, #1E40AF);
+}
+
+.document-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.document-frame::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+}
+
+.blue-glow {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.6) 0%, rgba(30, 64, 175, 0) 70%);
+}
+
+.blue-icon {
+  color: #3B82F6;
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.7));
+}
+
+.highlight.blue {
+  background: linear-gradient(to right, #3B82F6, #1E40AF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-lines {
+  position: absolute;
+  width: 80%;
+  height: 80%;
+  top: 10%;
+  left: 10%;
+  z-index: 1;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(to right, rgba(59, 130, 246, 0.3) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+  background-size: 10px 5px;
+  animation: text-scroll 3s linear infinite;
+}
+
+@keyframes text-scroll {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 20px;
+  }
+}

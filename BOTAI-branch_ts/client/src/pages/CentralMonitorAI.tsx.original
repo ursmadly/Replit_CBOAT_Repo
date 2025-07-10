@@ -1,0 +1,1737 @@
+import { useEffect, useState, useCallback } from "react";
+import AppLayout from "@/components/layout/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle as AlertCircleIcon, Check, CheckCircle2, Clock, Cpu, Download, Eye, EyeOff, FileJson, FileSpreadsheet, Loader2, Maximize2, Minimize2, RefreshCw, ChevronLeft, ChevronRight, Server } from "lucide-react";
+
+export default function CentralMonitorAI() {
+  const { toast } = useToast();
+  const [selectedTrial, setSelectedTrial] = useState<number>(1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [showBackendAgents, setShowBackendAgents] = useState(true);
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+  
+  // Fetch trials data
+  const { data: trials } = useQuery({
+    queryKey: ['/api/trials'],
+    queryFn: async () => {
+      const response = await fetch('/api/trials');
+      if (!response.ok) throw new Error('Failed to fetch trials');
+      return response.json();
+    }
+  });
+  
+  // Run analysis function
+  const runAnalysis = async () => {
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+    
+    // Simulate progress
+    const interval = setInterval(() => {
+      setAnalysisProgress(prev => {
+        const newProgress = prev + 5;
+        if (newProgress >= 100) {
+          clearInterval(interval);
+          setIsAnalyzing(false);
+          
+          // Show success message
+          toast({
+            title: "Analysis completed",
+            description: "All trial data has been analyzed successfully.",
+          });
+          
+          return 100;
+        }
+        return newProgress;
+      });
+    }, 200);
+  };
+
+  return (
+    <AppLayout>
+      <div className="flex flex-col h-full">
+        {/* Full screen agent dialog */}
+        <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
+          <DialogContent className="max-w-6xl h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>AI Agent System Monitor</DialogTitle>
+              <DialogDescription>Real-time view of all active AI agents processing your clinical trial data</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto p-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {/* Protocol Monitoring Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Protocol Monitor</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Monitoring protocol deviations across sites and subjects</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">5m ago</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Subjects monitored:</span>
+                      <span className="font-medium">52</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Deviations detected:</span>
+                      <span className="font-medium">3</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Queries created:</span>
+                      <span className="font-medium">2</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Site Performance Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Site Performance</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Tracking enrollment, data entry, and query resolution metrics</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">1m ago</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Sites monitored:</span>
+                      <span className="font-medium">12</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Enrollment alerts:</span>
+                      <span className="font-medium">1</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Task assignments:</span>
+                      <span className="font-medium">3</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lab Data Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Lab Data Monitor</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Analyzing lab trends and flagging clinically significant changes</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">Just now</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Lab values analyzed:</span>
+                      <span className="font-medium">287</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Abnormal results:</span>
+                      <span className="font-medium">8</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">CTCAE Grade 3+:</span>
+                      <span className="font-medium">2</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Safety Signal Agent - Full Detail */}
+                <div className="border border-blue-100 rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                      <h4 className="font-medium text-blue-800">Safety Signal</h4>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Detecting potential safety signals across AEs and lab data</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Last activity:</span>
+                      <span className="font-medium">3m ago</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-green-600">Running</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">AEs analyzed:</span>
+                      <span className="font-medium">42</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Potential signals:</span>
+                      <span className="font-medium">3</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Safety queries:</span>
+                      <span className="font-medium">2</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Agent Activity Log - Full Detail */}
+              <div className="mt-6 rounded-lg bg-gradient-to-r from-gray-900 to-blue-900 p-4 text-green-400 font-mono text-xs border border-gray-700 relative shadow-inner">
+                <div className="absolute top-3 right-3 flex space-x-1">
+                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                  <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
+                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                </div>
+                <h4 className="text-white mb-3 text-sm flex items-center font-semibold">
+                  <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                  Monitor Activity Log
+                  <span className="text-xs text-gray-400 ml-2 font-normal">Detailed agent activity</span>
+                </h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 py-1 pr-2">
+                  <p className="opacity-95">[<span className="text-blue-400">13:51:15</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Checking visit schedule adherence for 52 subjects...</p>
+                  <p className="opacity-90">[<span className="text-blue-400">13:50:48</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Site 103 showing 22% decline in enrollment rate</p>
+                  <p className="opacity-95">[<span className="text-blue-400">13:50:30</span>] <span className="text-purple-400">LabDataMonitorAgent</span>: New lab data received from central lab (287 results)</p>
+                  <p className="opacity-100 text-green-300 font-medium">[<span className="text-blue-400">13:50:15</span>] <span className="text-purple-400">SafetySignalAgent</span>: Creating Query #PD-042 for elevated liver enzymes in 3 subjects</p>
+                  <p className="opacity-85">[<span className="text-blue-400">13:49:55</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Detected 3 protocol deviations in visit window compliance</p>
+                  <p className="opacity-80">[<span className="text-blue-400">13:49:30</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Analyzing query resolution times for all sites</p>
+                  <p className="opacity-75">[<span className="text-blue-400">13:49:10</span>] <span className="text-purple-400">LabDataMonitorAgent</span>: Applying reference ranges to new lab results</p>
+                  <p className="opacity-70">[<span className="text-blue-400">13:48:45</span>] <span className="text-purple-400">SafetySignalAgent</span>: Cross-referencing AEs with concomitant medications</p>
+                  <p className="opacity-65">[<span className="text-blue-400">13:48:30</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Updating trial milestones</p>
+                  <p className="opacity-60">[<span className="text-blue-400">13:48:00</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Calculating data entry metrics by site</p>
+                  <p className="opacity-55">[<span className="text-blue-400">13:47:45</span>] <span className="text-purple-400">LabDataMonitorAgent</span>: Trend analysis of hematology values</p>
+                  <p className="opacity-50">[<span className="text-blue-400">13:47:30</span>] <span className="text-purple-400">SafetySignalAgent</span>: Safety report generation scheduled</p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Top control panel with study selection and action buttons */}
+        <div className="bg-gradient-to-r from-blue-50 to-white p-4 rounded-lg border border-blue-100 mb-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-blue-800">Central Monitor.AI</h1>
+              <p className="text-gray-600">AI-powered monitoring for clinical trial data</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Select defaultValue="1" onValueChange={(value) => setSelectedTrial(parseInt(value))}>
+                <SelectTrigger className="w-[240px] bg-white">
+                  <SelectValue placeholder="Select Trial" />
+                </SelectTrigger>
+                <SelectContent>
+                  {trials?.map((trial: any) => (
+                    <SelectItem key={trial.id} value={trial.id.toString()}>
+                      {trial.protocolId}: {trial.title}
+                    </SelectItem>
+                  )) || (
+                    <SelectItem value="1">PRO001: Diabetes Type 2 Study</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <Button 
+                variant="default" 
+                className="flex items-center bg-blue-600 hover:bg-blue-700" 
+                onClick={runAnalysis}
+                disabled={isAnalyzing}
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Run Analysis
+                  </>
+                )}
+              </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex items-center">
+                    <Clock className="mr-2 h-4 w-4" />
+                    Schedule
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[625px]">
+                  <DialogHeader>
+                    <DialogTitle>Analysis Schedule</DialogTitle>
+                    <DialogDescription>
+                      Configure when and how the monitoring analysis runs
+                    </DialogDescription>
+                  </DialogHeader>
+                  {/* Dialog content */}
+                </DialogContent>
+              </Dialog>
+              
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowBackendAgents(!showBackendAgents)}
+                className="text-xs"
+              >
+                {showBackendAgents ? (
+                  <>
+                    <EyeOff className="mr-1 h-3 w-3" />
+                    Hide Agents
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-1 h-3 w-3" />
+                    Show Agents
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        {isAnalyzing && (
+          <Alert className="mb-6">
+            <AlertCircleIcon className="h-4 w-4" />
+            <AlertTitle>Analyzing Trial Data</AlertTitle>
+            <AlertDescription>
+              <div className="mt-2">
+                <Progress value={analysisProgress} className="h-2" />
+                <p className="text-xs text-right mt-1">{analysisProgress}% complete</p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Backend Agents Visualization */}
+        {showBackendAgents && (
+          <div className="border border-blue-200 rounded-lg overflow-hidden shadow-md mb-6">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center">
+              <Server className="h-5 w-5 mr-2" />
+              <h3 className="font-medium text-lg">Backend Agents</h3>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs bg-blue-500 bg-opacity-40 py-1 px-2 rounded-full">Real-time Monitoring</span>
+              <Badge variant="outline" className="bg-blue-500 text-white border-blue-400 ml-2">4 Active</Badge>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-blue-500 p-1"
+                onClick={() => setIsAgentDialogOpen(true)}
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="p-5 bg-gradient-to-b from-blue-50 to-white">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Protocol Monitoring Agent */}
+              <div className="border border-blue-100 rounded-lg bg-white p-3 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-100 to-transparent rounded-bl-full opacity-40 group-hover:opacity-60 transition-opacity duration-200"></div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800">Protocol Monitor</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600 mb-2">Monitoring protocol deviations across sites and subjects</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <Clock className="h-3 w-3 mr-1 inline" />
+                    <span>5m ago</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full">3 deviations</span>
+                </div>
+              </div>
+              
+              {/* Site Performance Agent */}
+              <div className="border border-blue-100 rounded-lg bg-white p-3 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-100 to-transparent rounded-bl-full opacity-40 group-hover:opacity-60 transition-opacity duration-200"></div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800">Site Performance</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600 mb-2">Tracking enrollment, data entry, and query resolution metrics</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <Clock className="h-3 w-3 mr-1 inline" />
+                    <span>1m ago</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full">12 sites</span>
+                </div>
+              </div>
+              
+              {/* Lab Data Monitoring Agent */}
+              <div className="border border-blue-100 rounded-lg bg-white p-3 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-100 to-transparent rounded-bl-full opacity-40 group-hover:opacity-60 transition-opacity duration-200"></div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800">Lab Data Monitor</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600 mb-2">Analyzing lab trends and flagging clinically significant changes</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <Clock className="h-3 w-3 mr-1 inline" />
+                    <span>Just now</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full">287 values</span>
+                </div>
+              </div>
+              
+              {/* Safety Signal Agent */}
+              <div className="border border-blue-100 rounded-lg bg-white p-3 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-100 to-transparent rounded-bl-full opacity-40 group-hover:opacity-60 transition-opacity duration-200"></div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h4 className="font-medium text-blue-800">Safety Signal</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                </div>
+                <p className="text-xs text-gray-600 mb-2">Detecting potential safety signals across AEs and lab data</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <Clock className="h-3 w-3 mr-1 inline" />
+                    <span>3m ago</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full">42 AEs</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Agent Activity Log */}
+            <div className="mt-4 rounded-lg bg-gradient-to-r from-gray-900 to-blue-900 p-3 text-green-400 font-mono text-xs border border-gray-700 relative shadow-inner">
+              <div className="absolute top-2 right-2 flex space-x-1">
+                <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
+                <div className="h-2 w-2 rounded-full bg-green-500"></div>
+              </div>
+              <h4 className="text-white mb-2 text-sm flex items-center font-semibold">
+                <div className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                Monitor Activity Log
+                <span className="text-xs text-gray-400 ml-2 font-normal">Real-time monitoring</span>
+              </h4>
+              <div className="space-y-1 max-h-28 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 py-1">
+                <p className="opacity-95">[<span className="text-blue-400">13:51:15</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Checking visit schedule adherence for 52 subjects...</p>
+                <p className="opacity-90">[<span className="text-blue-400">13:50:48</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Site 103 showing 22% decline in enrollment rate</p>
+                <p className="opacity-95">[<span className="text-blue-400">13:50:30</span>] <span className="text-purple-400">LabDataMonitorAgent</span>: New lab data received from central lab (287 results)</p>
+                <p className="opacity-100 text-green-300 font-medium">[<span className="text-blue-400">13:50:15</span>] <span className="text-purple-400">SafetySignalAgent</span>: Creating Query #PD-042 for elevated liver enzymes in 3 subjects</p>
+                <p className="opacity-85">[<span className="text-blue-400">13:49:55</span>] <span className="text-purple-400">ProtocolMonitorAgent</span>: Detected 3 protocol deviations in visit window compliance</p>
+                <p className="opacity-80">[<span className="text-blue-400">13:49:30</span>] <span className="text-purple-400">SitePerformanceAgent</span>: Analyzing query resolution times for all sites</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
+        
+        {/* Main content tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+          <TabsList className="mb-6">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="queries">Queries</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="event-monitoring">Event Monitoring</TabsTrigger>
+            <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex justify-between items-center">
+                    <span>Active Queries</span>
+                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200">12</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">12</div>
+                  <p className="text-xs text-muted-foreground mt-1">+2 new in last 24h</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex justify-between items-center">
+                    <span>Open Tasks</span>
+                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200">18</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">18</div>
+                  <p className="text-xs text-muted-foreground mt-1">5 due today</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex justify-between items-center">
+                    <span>Safety Signals</span>
+                    <Badge className="bg-red-100 text-red-700 hover:bg-red-200">3</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">3</div>
+                  <p className="text-xs text-muted-foreground mt-1">1 critical priority</p>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold">Recent Activity</h3>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">New lab results received - Site 102</TableCell>
+                      <TableCell>10 minutes ago</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-700">Processed</Badge></TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Safety Query SQ-001 assigned to Dr. Carter</TableCell>
+                      <TableCell>35 minutes ago</TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-700">Assigned</Badge></TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Screening data check completed</TableCell>
+                      <TableCell>2 hours ago</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-700">Completed</Badge></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Queries Tab */}
+          <TabsContent value="queries" className="flex-1">
+            <div className="flex justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Query Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="protocol_deviation">Protocol Deviation</SelectItem>
+                    <SelectItem value="site_issue">Site Issue</SelectItem>
+                    <SelectItem value="lab_issue">Lab Issue</SelectItem>
+                    <SelectItem value="safety">Safety</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="created">Created</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="under_review">Under Review</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button variant="outline" className="flex items-center">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </div>
+            
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Tasks</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <Dialog>
+                        <DialogTrigger className="text-blue-600 hover:underline">PD-001</DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                          <DialogHeader>
+                            <DialogTitle>Query Details: PD-001</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Title</h4>
+                                <p>Missing lab tests at Visit 2</p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Type</h4>
+                                <Badge className="bg-blue-100 text-blue-700">Protocol Deviation</Badge>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Status</h4>
+                                <Badge>Created</Badge>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Severity</h4>
+                                <Badge className="bg-red-100 text-red-700">High</Badge>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Created Date</h4>
+                                <p>Nov 1, 2023</p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Created By</h4>
+                                <p>Central Monitor.AI</p>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Description</h4>
+                              <p>Several subjects are missing CBC lab tests at Visit 2 which is required by protocol. These lab tests are critical for safety monitoring and efficacy assessment. All subjects must have CBC results available according to the protocol schedule.</p>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Affected Subjects</h4>
+                              <div className="flex space-x-2">
+                                <Badge variant="outline">100-001</Badge>
+                                <Badge variant="outline">100-003</Badge>
+                                <Badge variant="outline">100-007</Badge>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Data Sources</h4>
+                              <div className="flex space-x-2">
+                                <Badge variant="outline">EDC</Badge>
+                                <Badge variant="outline">Lab</Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="border rounded-md p-4 space-y-4">
+                              <h4 className="text-sm font-semibold">Discussion Thread</h4>
+                              
+                              <div className="space-y-4">
+                                <div className="bg-blue-50 p-3 rounded-md">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium text-sm">Central Monitor.AI</span>
+                                    <span className="text-xs text-gray-500">Apr 1, 2025 08:15</span>
+                                  </div>
+                                  <p className="text-sm">Query detected: Multiple subjects (100-001, 100-003, 100-007) missing required CBC lab tests at Visit 2 per protocol requirements.</p>
+                                </div>
+                                
+                                <div className="bg-green-50 p-3 rounded-md">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium text-sm">Michael Thompson (CRA)</span>
+                                    <span className="text-xs text-gray-500">Apr 1, 2025 10:30</span>
+                                  </div>
+                                  <p className="text-sm">I've contacted Site 100 regarding the missing CBC tests. According to the site coordinator, the lab samples were collected but there was an issue with the central lab processing. They're working to resolve this and will update us by tomorrow.</p>
+                                </div>
+                                
+                                <div className="bg-orange-50 p-3 rounded-md">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium text-sm">Jennifer Rodriguez (Lab Manager)</span>
+                                    <span className="text-xs text-gray-500">Apr 2, 2025 09:15</span>
+                                  </div>
+                                  <p className="text-sm">We've identified the issue at the central lab. The samples were received but due to a labeling error, they weren't processed with the correct study ID. We've corrected this and will have the results uploaded to the EDC by end of day.</p>
+                                </div>
+                                
+                                <div className="bg-purple-50 p-3 rounded-md">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium text-sm">Dr. Robert Chen (Medical Monitor)</span>
+                                    <span className="text-xs text-gray-500">Apr 2, 2025 14:45</span>
+                                  </div>
+                                  <p className="text-sm">Please ensure this is documented as a protocol deviation as these results are outside the visit window specified in the protocol. Once results are available, we'll need to assess if there are any safety concerns with the delay.</p>
+                                </div>
+                              </div>
+                              
+                              <div className="pt-2 border-t mt-4">
+                                <h4 className="text-sm font-semibold mb-2">Add Comment</h4>
+                                <div className="space-y-3">
+                                  <Textarea placeholder="Type your response here..." className="min-h-[100px]" />
+                                  <div className="flex justify-end space-x-2">
+                                    <Button variant="outline" size="sm">Cancel</Button>
+                                    <Button size="sm">Add Comment</Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Related Tasks</h4>
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>ID</TableHead>
+                                    <TableHead>Title</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Assigned To</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  <TableRow>
+                                    <TableCell>
+                                      <Dialog>
+                                        <DialogTrigger className="text-blue-600 hover:underline">T-001</DialogTrigger>
+                                        <DialogContent className="max-w-3xl">
+                                          <DialogHeader>
+                                            <DialogTitle>Task Details: T-001</DialogTitle>
+                                          </DialogHeader>
+                                          <div className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                              <div>
+                                                <h4 className="text-sm font-semibold mb-1">Title</h4>
+                                                <p>Verify missing CBC tests with site</p>
+                                              </div>
+                                              <div>
+                                                <h4 className="text-sm font-semibold mb-1">Status</h4>
+                                                <Badge className="bg-amber-100 text-amber-700">Under Review</Badge>
+                                              </div>
+                                              <div>
+                                                <h4 className="text-sm font-semibold mb-1">Created Date</h4>
+                                                <p>Nov 1, 2023</p>
+                                              </div>
+                                              <div>
+                                                <h4 className="text-sm font-semibold mb-1">Due Date</h4>
+                                                <p>Nov 5, 2023</p>
+                                              </div>
+                                              <div>
+                                                <h4 className="text-sm font-semibold mb-1">Created By</h4>
+                                                <p>Central Monitor.AI</p>
+                                              </div>
+                                              <div>
+                                                <h4 className="text-sm font-semibold mb-1">Assigned To</h4>
+                                                <p>John Smith (CRA)</p>
+                                              </div>
+                                            </div>
+                                            
+                                            <div>
+                                              <h4 className="text-sm font-semibold mb-1">Description</h4>
+                                              <p>Verify with the site why the CBC lab tests are missing for subjects 100-001, 100-003, and 100-007 at Visit 2. Document findings and expected resolution date.</p>
+                                            </div>
+                                            
+                                            <div className="border rounded-md p-4 space-y-4">
+                                              <h4 className="text-sm font-semibold">Discussion Thread</h4>
+                                              
+                                              <div className="space-y-4">
+                                                <div className="bg-blue-50 p-3 rounded-md">
+                                                  <div className="flex justify-between mb-1">
+                                                    <span className="font-medium text-sm">Central Monitor.AI</span>
+                                                    <span className="text-xs text-gray-500">Nov 1, 2023 14:32</span>
+                                                  </div>
+                                                  <p className="text-sm">Task created: Please verify the missing CBC lab tests at Visit 2 for the affected subjects.</p>
+                                                </div>
+                                                
+                                                <div className="bg-green-50 p-3 rounded-md">
+                                                  <div className="flex justify-between mb-1">
+                                                    <span className="font-medium text-sm">John Smith (CRA)</span>
+                                                    <span className="text-xs text-gray-500">Nov 2, 2023 09:15</span>
+                                                  </div>
+                                                  <p className="text-sm">I've contacted the site coordinator. The lab samples were collected but there was an issue with the sample processing at the central lab. The lab is reprocessing the samples and results should be available by Nov 4.</p>
+                                                </div>
+                                                
+                                                <div className="bg-purple-50 p-3 rounded-md">
+                                                  <div className="flex justify-between mb-1">
+                                                    <span className="font-medium text-sm">Dr. Michelle Lee (Medical Monitor)</span>
+                                                    <span className="text-xs text-gray-500">Nov 2, 2023 11:30</span>
+                                                  </div>
+                                                  <p className="text-sm">Thanks for the update. Please ensure the lab provides the appropriate documentation for this issue, and tag it as a lab processing deviation rather than a site issue.</p>
+                                                </div>
+                                                
+                                                <div className="bg-green-50 p-3 rounded-md">
+                                                  <div className="flex justify-between mb-1">
+                                                    <span className="font-medium text-sm">John Smith (CRA)</span>
+                                                    <span className="text-xs text-gray-500">Nov 2, 2023 13:45</span>
+                                                  </div>
+                                                  <p className="text-sm">Confirmed with the lab. They will provide the documentation and I'll upload it once received.</p>
+                                                </div>
+                                              </div>
+                                              
+                                              <div className="pt-2 border-t mt-4">
+                                                <h4 className="text-sm font-semibold mb-2">Add Comment</h4>
+                                                <div className="space-y-3">
+                                                  <Textarea placeholder="Type your response here..." className="min-h-[100px]" />
+                                                  <div className="flex justify-end space-x-2">
+                                                    <Button variant="outline" size="sm">Cancel</Button>
+                                                    <Button size="sm">Add Comment</Button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <DialogFooter className="mt-4">
+                                            <Select defaultValue="under_review">
+                                              <SelectTrigger className="w-[180px]">
+                                                <SelectValue placeholder="Update Status" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="created">Created</SelectItem>
+                                                <SelectItem value="assigned">Assigned</SelectItem>
+                                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                                <SelectItem value="under_review">Under Review</SelectItem>
+                                                <SelectItem value="responded">Responded</SelectItem>
+                                                <SelectItem value="closed">Closed</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                            <Button>Update Task</Button>
+                                          </DialogFooter>
+                                        </DialogContent>
+                                      </Dialog>
+                                    </TableCell>
+                                    <TableCell>Verify missing CBC tests with site</TableCell>
+                                    <TableCell><Badge className="bg-amber-100 text-amber-700">Under Review</Badge></TableCell>
+                                    <TableCell>John Smith (CRA)</TableCell>
+                                    <TableCell>
+                                      <Button variant="ghost" size="sm">View</Button>
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow>
+                                    <TableCell>T-002</TableCell>
+                                    <TableCell>Document protocol deviations</TableCell>
+                                    <TableCell><Badge>Created</Badge></TableCell>
+                                    <TableCell>John Smith (CRA)</TableCell>
+                                    <TableCell>
+                                      <Button variant="ghost" size="sm">View</Button>
+                                    </TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-2">Discussion Thread</h4>
+                              <div className="space-y-4 border rounded-md p-4">
+                                <div className="bg-blue-50 p-3 rounded-md">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium text-sm">Central Monitor.AI</span>
+                                    <span className="text-xs text-gray-500">Nov 1, 2023 14:32</span>
+                                  </div>
+                                  <p className="text-sm">Query created based on data analysis: Multiple subjects are missing required CBC lab tests at Visit 2 according to protocol Schedule of Assessments.</p>
+                                </div>
+                                
+                                <div className="bg-indigo-50 p-3 rounded-md">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium text-sm">Sarah Johnson (Lead CRA)</span>
+                                    <span className="text-xs text-gray-500">Nov 1, 2023 15:20</span>
+                                  </div>
+                                  <p className="text-sm">I've reviewed this issue. John is contacting the site to verify the status of these lab tests.</p>
+                                </div>
+                                
+                                <div className="bg-purple-50 p-3 rounded-md">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium text-sm">Dr. Michelle Lee (Medical Monitor)</span>
+                                    <span className="text-xs text-gray-500">Nov 2, 2023 11:30</span>
+                                  </div>
+                                  <p className="text-sm">This issue has been identified as a lab processing error rather than missing samples. The lab is reprocessing and should have results by Nov 4. Please update the classification to lab processing deviation once confirmed.</p>
+                                </div>
+                              </div>
+                              
+                              <div className="pt-4">
+                                <h4 className="text-sm font-semibold mb-2">Add Comment</h4>
+                                <div className="space-y-3">
+                                  <Textarea placeholder="Type your response here..." className="min-h-[100px]" />
+                                  <div className="flex justify-end space-x-2">
+                                    <Button variant="outline" size="sm">Cancel</Button>
+                                    <Button size="sm">Add Comment</Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Select defaultValue="created">
+                              <SelectTrigger className="w-[180px] mr-2">
+                                <SelectValue placeholder="Update Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="created">Created</SelectItem>
+                                <SelectItem value="assigned">Assigned</SelectItem>
+                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                <SelectItem value="under_review">Under Review</SelectItem>
+                                <SelectItem value="closed">Closed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button variant="outline">Close Query</Button>
+                            <Button>Add Task</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200">Protocol Deviation</Badge>
+                    </TableCell>
+                    <TableCell>Missing lab tests at Visit 2</TableCell>
+                    <TableCell>
+                      <Badge>Created</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-red-100 text-red-700 hover:bg-red-200">High</Badge>
+                    </TableCell>
+                    <TableCell>Nov 1, 2023</TableCell>
+                    <TableCell>2</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">View</Button>
+                    </TableCell>
+                  </TableRow>
+                  
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <Dialog>
+                        <DialogTrigger className="text-blue-600 hover:underline">SQ-001</DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                          <DialogHeader>
+                            <DialogTitle>Query Details: SQ-001</DialogTitle>
+                          </DialogHeader>
+                          {/* Dialog content similar to above */}
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-red-100 text-red-700 hover:bg-red-200">Safety</Badge>
+                    </TableCell>
+                    <TableCell>Potential unreported SAE</TableCell>
+                    <TableCell>
+                      <Badge className="bg-amber-100 text-amber-700">Under Review</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-red-100 text-red-700 hover:bg-red-200">Critical</Badge>
+                    </TableCell>
+                    <TableCell>Oct 15, 2023</TableCell>
+                    <TableCell>1</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">View</Button>
+                    </TableCell>
+                  </TableRow>
+                  
+                  <TableRow>
+                    <TableCell className="font-medium">SI-001</TableCell>
+                    <TableCell>
+                      <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200">Site Issue</Badge>
+                    </TableCell>
+                    <TableCell>Site 103 data entry delays</TableCell>
+                    <TableCell>
+                      <Badge className="bg-blue-100 text-blue-700">Assigned</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200">Medium</Badge>
+                    </TableCell>
+                    <TableCell>Oct 25, 2023</TableCell>
+                    <TableCell>1</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">View</Button>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            
+            <div className="flex items-center justify-between my-4">
+              <div className="text-sm text-gray-500">
+                Showing 3 of 12 queries
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" size="sm" disabled>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="flex-1">
+            <div className="flex justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="created">Created</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="under_review">Under Review</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="cra">CRA</SelectItem>
+                    <SelectItem value="dm">Data Manager</SelectItem>
+                    <SelectItem value="mm">Medical Monitor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button className="flex items-center">
+                <Check className="mr-2 h-4 w-4" />
+                New Task
+              </Button>
+            </div>
+            
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Related Query</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <Dialog>
+                        <DialogTrigger className="text-blue-600 hover:underline">T-001</DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                          <DialogHeader>
+                            <DialogTitle>Task Details: T-001</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Title</h4>
+                                <p>Verify missing CBC tests with site</p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Status</h4>
+                                <Badge>Created</Badge>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Priority</h4>
+                                <Badge className="bg-red-100 text-red-700">High</Badge>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Due Date</h4>
+                                <p>Nov 5, 2023</p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Assigned To</h4>
+                                <p>John Smith (CRA)</p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold mb-1">Created</h4>
+                                <p>Nov 1, 2023</p>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Description</h4>
+                              <p>Contact site coordinator to verify status of missing CBC tests for Visit 2</p>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Related Query</h4>
+                              <p className="text-blue-600 hover:underline">PD-001: Missing lab tests at Visit 2</p>
+                            </div>
+                            
+                            <div className="border p-4 rounded-lg">
+                              <h4 className="text-sm font-semibold mb-3">Update Task Status</h4>
+                              <Select defaultValue="created">
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="created">Created</SelectItem>
+                                  <SelectItem value="assigned">Assigned</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="under_review">Under Review</SelectItem>
+                                  <SelectItem value="closed">Closed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              
+                              <div className="mt-3">
+                                <Label htmlFor="comment">Add Comment</Label>
+                                <Textarea id="comment" placeholder="Enter your comment..." className="mt-1" />
+                              </div>
+                              
+                              <Button className="mt-3">Submit Update</Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                    <TableCell>Verify missing CBC tests with site</TableCell>
+                    <TableCell>
+                      <Badge>Created</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-red-100 text-red-700 hover:bg-red-200">High</Badge>
+                    </TableCell>
+                    <TableCell>John Smith (CRA)</TableCell>
+                    <TableCell>Nov 5, 2023</TableCell>
+                    <TableCell className="text-blue-600 hover:underline">PD-001</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">View</Button>
+                    </TableCell>
+                  </TableRow>
+                  
+                  <TableRow>
+                    <TableCell className="font-medium">T-003</TableCell>
+                    <TableCell>Contact Site 103 about data entry delays</TableCell>
+                    <TableCell>
+                      <Badge className="bg-blue-100 text-blue-700">Assigned</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200">Medium</Badge>
+                    </TableCell>
+                    <TableCell>Sarah Johnson (CRA)</TableCell>
+                    <TableCell>Oct 30, 2023</TableCell>
+                    <TableCell className="text-blue-600 hover:underline">SI-001</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">View</Button>
+                    </TableCell>
+                  </TableRow>
+                  
+                  <TableRow>
+                    <TableCell className="font-medium">T-005</TableCell>
+                    <TableCell>Contact PI regarding potential SAE</TableCell>
+                    <TableCell>
+                      <Badge className="bg-amber-100 text-amber-700">Under Review</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-red-100 text-red-700 hover:bg-red-200">High</Badge>
+                    </TableCell>
+                    <TableCell>Dr. Emily Carter (Medical Monitor)</TableCell>
+                    <TableCell>Oct 18, 2023</TableCell>
+                    <TableCell className="text-blue-600 hover:underline">SQ-001</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">View</Button>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            
+            <div className="flex items-center justify-between my-4">
+              <div className="text-sm text-gray-500">
+                Showing 3 of 18 tasks
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" size="sm" disabled>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Logs Tab */}
+          <TabsContent value="logs" className="flex-1">
+            <div className="space-y-4">
+              <div className="flex justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <Select defaultValue="all">
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Event Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Events</SelectItem>
+                      <SelectItem value="query">Query Events</SelectItem>
+                      <SelectItem value="task">Task Events</SelectItem>
+                      <SelectItem value="data">Data Events</SelectItem>
+                      <SelectItem value="system">System Events</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button variant="outline" className="flex items-center">
+                  <FileJson className="mr-2 h-4 w-4" />
+                  Export Logs
+                </Button>
+              </div>
+              
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Event Type</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Related ID</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 1, 2023 14:32</TableCell>
+                      <TableCell>
+                        <Badge className="bg-blue-100 text-blue-700">Query Created</Badge>
+                      </TableCell>
+                      <TableCell>New query created: Missing lab tests at Visit 2</TableCell>
+                      <TableCell>Central Monitor.AI</TableCell>
+                      <TableCell>PD-001</TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 1, 2023 14:32</TableCell>
+                      <TableCell>
+                        <Badge className="bg-green-100 text-green-700">Task Created</Badge>
+                      </TableCell>
+                      <TableCell>New task created: Verify missing CBC tests with site</TableCell>
+                      <TableCell>Central Monitor.AI</TableCell>
+                      <TableCell>T-001</TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 1, 2023 14:32</TableCell>
+                      <TableCell>
+                        <Badge className="bg-green-100 text-green-700">Task Created</Badge>
+                      </TableCell>
+                      <TableCell>New task created: Document protocol deviations</TableCell>
+                      <TableCell>Central Monitor.AI</TableCell>
+                      <TableCell>T-002</TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 1, 2023 14:31</TableCell>
+                      <TableCell>
+                        <Badge className="bg-purple-100 text-purple-700">Data Event</Badge>
+                      </TableCell>
+                      <TableCell>New lab data received from central lab</TableCell>
+                      <TableCell>System</TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 1, 2023 12:05</TableCell>
+                      <TableCell>
+                        <Badge className="bg-purple-100 text-purple-700">Data Event</Badge>
+                      </TableCell>
+                      <TableCell>New EDC data synchronized</TableCell>
+                      <TableCell>System</TableCell>
+                      <TableCell>-</TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Oct 29, 2023 15:12</TableCell>
+                      <TableCell>
+                        <Badge className="bg-yellow-100 text-yellow-700">Task Updated</Badge>
+                      </TableCell>
+                      <TableCell>Task status changed to Under Review: Contact PI regarding potential SAE</TableCell>
+                      <TableCell>Emily Carter</TableCell>
+                      <TableCell>T-005</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  Showing 6 of 245 log entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm" disabled>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="flex-1">
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-medium mb-4">Monitoring Mode Settings</h3>
+                <div className="border p-4 rounded-lg space-y-6">
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                      <div className="flex items-center mb-4">
+                        <h4 className="font-medium text-blue-800">Select Monitoring Mode</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`border p-4 rounded-lg cursor-pointer hover:border-blue-500 transition-all ${true ? 'bg-white border-blue-500 shadow-sm' : 'bg-gray-50'}`}>
+                          <div className="flex items-start mb-3">
+                            <RadioGroup className="mr-3 mt-0.5" value="active">
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="active" id="active-monitoring" />
+                                <Label htmlFor="active-monitoring" className="font-semibold">Active Monitoring</Label>
+                              </div>
+                            </RadioGroup>
+                          </div>
+                          <p className="text-sm text-gray-600 ml-6">
+                            System continuously monitors data and triggers events based on data changes, query responses, 
+                            and detected anomalies. Runs in real-time without a fixed schedule.
+                          </p>
+                        </div>
+                        <div className={`border p-4 rounded-lg cursor-pointer hover:border-blue-500 transition-all ${false ? 'bg-white border-blue-500 shadow-sm' : 'bg-gray-50'}`}>
+                          <div className="flex items-start mb-3">
+                            <RadioGroup className="mr-3 mt-0.5" value="active">
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="scheduled" id="scheduled-monitoring" />
+                                <Label htmlFor="scheduled-monitoring" className="font-semibold">Scheduled Monitoring</Label>
+                              </div>
+                            </RadioGroup>
+                          </div>
+                          <p className="text-sm text-gray-600 ml-6">
+                            System runs analysis at predetermined intervals based on the schedule defined below. 
+                            All monitoring activities occur only during scheduled executions.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium mb-3">Monitoring Frequency Settings</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">Data Refresh Monitoring</h5>
+                        <Select defaultValue="realtime">
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="realtime">Real-time (Event-based)</SelectItem>
+                            <SelectItem value="15">Every 15 minutes</SelectItem>
+                            <SelectItem value="30">Every 30 minutes</SelectItem>
+                            <SelectItem value="60">Every hour</SelectItem>
+                            <SelectItem value="720">Every 12 hours</SelectItem>
+                            <SelectItem value="1440">Daily</SelectItem>
+                            <SelectItem value="10080">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">Safety Events Monitoring</h5>
+                        <Select defaultValue="realtime">
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="realtime">Real-time (Event-based)</SelectItem>
+                            <SelectItem value="15">Every 15 minutes</SelectItem>
+                            <SelectItem value="30">Every 30 minutes</SelectItem>
+                            <SelectItem value="60">Every hour</SelectItem>
+                            <SelectItem value="720">Every 12 hours</SelectItem>
+                            <SelectItem value="1440">Daily</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">Protocol Adherence Monitoring</h5>
+                        <Select defaultValue="1440">
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="realtime">Real-time (Event-based)</SelectItem>
+                            <SelectItem value="60">Every hour</SelectItem>
+                            <SelectItem value="720">Every 12 hours</SelectItem>
+                            <SelectItem value="1440">Daily</SelectItem>
+                            <SelectItem value="10080">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">Site Performance Monitoring</h5>
+                        <Select defaultValue="1440">
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="realtime">Real-time (Event-based)</SelectItem>
+                            <SelectItem value="720">Every 12 hours</SelectItem>
+                            <SelectItem value="1440">Daily</SelectItem>
+                            <SelectItem value="10080">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                    
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Trigger Settings</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="data-refresh-trigger" checked />
+                          <Label htmlFor="data-refresh-trigger">Data refresh trigger</Label>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">Enabled</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="query-response-trigger" checked />
+                          <Label htmlFor="query-response-trigger">Query response trigger</Label>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">Enabled</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="safety-event-trigger" checked />
+                          <Label htmlFor="safety-event-trigger">Safety event trigger</Label>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">Enabled</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="schedule-trigger" />
+                          <Label htmlFor="schedule-trigger">Schedule-based trigger</Label>
+                        </div>
+                        <Badge className="bg-gray-100 text-gray-700">Disabled</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                    <h4 className="font-medium mb-2">Analysis Frequency</h4>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="schedule-daily" />
+                        <Label htmlFor="schedule-daily">Daily</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Input type="time" className="w-40" defaultValue="08:00" />
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="schedule-weekly" checked />
+                        <Label htmlFor="schedule-weekly">Weekly</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Select defaultValue="1">
+                          <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Day" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Monday</SelectItem>
+                            <SelectItem value="2">Tuesday</SelectItem>
+                            <SelectItem value="3">Wednesday</SelectItem>
+                            <SelectItem value="4">Thursday</SelectItem>
+                            <SelectItem value="5">Friday</SelectItem>
+                            <SelectItem value="6">Saturday</SelectItem>
+                            <SelectItem value="0">Sunday</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="schedule-monthly" />
+                        <Label htmlFor="schedule-monthly">Monthly</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Input type="number" min="1" max="31" className="w-20" defaultValue="1" />
+                        <span>of each month</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Event-Based Triggers</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="event-data-received" checked />
+                          <Label htmlFor="event-data-received">New Data Received</Label>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">Enabled</Badge>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="event-query-response" checked />
+                          <Label htmlFor="event-query-response">Query Response Received</Label>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">Enabled</Badge>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="event-enrollment" />
+                          <Label htmlFor="event-enrollment">New Subject Enrolled</Label>
+                        </div>
+                        <Badge className="bg-gray-100 text-gray-700">Disabled</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">Notification Settings</h3>
+                <div className="border p-4 rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Email Notifications</h4>
+                      <p className="text-sm text-gray-500">Receive email notifications for new queries and tasks</p>
+                    </div>
+                    <Switch checked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Critical Issue Alerts</h4>
+                      <p className="text-sm text-gray-500">Send immediate notifications for critical issues</p>
+                    </div>
+                    <Switch checked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Digest Summaries</h4>
+                      <p className="text-sm text-gray-500">Receive daily summary of all monitoring activity</p>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">AI Monitoring Settings</h3>
+                <div className="border p-4 rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Auto-Close Resolved Issues</h4>
+                      <p className="text-sm text-gray-500">Automatically close issues when data has been corrected</p>
+                    </div>
+                    <Switch checked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Auto-Assign Tasks</h4>
+                      <p className="text-sm text-gray-500">Automatically assign tasks to responsible team members</p>
+                    </div>
+                    <Switch checked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Sensitivity Level</h4>
+                      <p className="text-sm text-gray-500">Set the sensitivity for detecting potential issues</p>
+                    </div>
+                    <Select defaultValue="medium">
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Sensitivity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline">Cancel</Button>
+                <Button>Save Settings</Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Event Monitoring Tab */}
+          <TabsContent value="event-monitoring" className="flex-1">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold">Event Monitoring</h3>
+                <div className="flex items-center space-x-2">
+                  <Select defaultValue="all">
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Event Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Event Types</SelectItem>
+                      <SelectItem value="data">Data Events</SelectItem>
+                      <SelectItem value="safety">Safety Events</SelectItem>
+                      <SelectItem value="compliance">Compliance Events</SelectItem>
+                      <SelectItem value="site">Site Events</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" className="flex items-center">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date/Time</TableHead>
+                      <TableHead>Event Type</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions Taken</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 2, 2023 10:15</TableCell>
+                      <TableCell>
+                        <Badge className="bg-purple-100 text-purple-700">Data Event</Badge>
+                      </TableCell>
+                      <TableCell>New lab data received for Diabetes Type 2 Phase III Trial (PRO001)</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-700">Processed</Badge></TableCell>
+                      <TableCell>Analysis completed, 1 query created</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 2, 2023 09:45</TableCell>
+                      <TableCell>
+                        <Badge className="bg-red-100 text-red-700">Safety Event</Badge>
+                      </TableCell>
+                      <TableCell>Potential unreported SAE detected in subject 100-042</TableCell>
+                      <TableCell><Badge className="bg-amber-100 text-amber-700">Under Review</Badge></TableCell>
+                      <TableCell>Task assigned to medical monitor</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 1, 2023 16:30</TableCell>
+                      <TableCell>
+                        <Badge className="bg-blue-100 text-blue-700">Compliance Event</Badge>
+                      </TableCell>
+                      <TableCell>Protocol deviation identified in visit window compliance</TableCell>
+                      <TableCell><Badge className="bg-blue-100 text-blue-700">Assigned</Badge></TableCell>
+                      <TableCell>Tasks created for site documentation</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Nov 1, 2023 11:20</TableCell>
+                      <TableCell>
+                        <Badge className="bg-amber-100 text-amber-700">Site Event</Badge>
+                      </TableCell>
+                      <TableCell>Site 103 showing pattern of delayed data entry</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-700">Resolved</Badge></TableCell>
+                      <TableCell>Site contacted, remediation plan implemented</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap">Oct 30, 2023 09:15</TableCell>
+                      <TableCell>
+                        <Badge className="bg-purple-100 text-purple-700">Data Event</Badge>
+                      </TableCell>
+                      <TableCell>EDC data export received for Diabetes Type 2 Phase III Trial (PRO001)</TableCell>
+                      <TableCell><Badge className="bg-green-100 text-green-700">Processed</Badge></TableCell>
+                      <TableCell>Analysis completed, no issues detected</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+              
+              <div className="flex items-center justify-between my-4">
+                <div className="text-sm text-gray-500">
+                  Showing 5 of 42 events
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm" disabled>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+}
