@@ -1,0 +1,693 @@
+import { db } from "./db";
+import { domainData, domainSources, trials, InsertDomainData, InsertDomainSource } from "@shared/schema";
+import { domainSpecificGenerators, getStudyIdentifier, subjectIds } from "../client/src/components/data-management/domains/DomainDataUtils";
+import { eq, and, sql } from "drizzle-orm";
+
+/**
+ * Initialize DM (Demographics) domain data
+ */
+export async function initDMData() {
+  console.log("Initializing DM data...");
+  
+  // Get all trials
+  const allTrials = await db.select().from(trials);
+  console.log(`Found ${allTrials.length} trials, initializing DM data for each`);
+  
+  for (const trial of allTrials) {
+    // Check if source exists
+    const existingSource = await db.select()
+      .from(domainSources)
+      .where(and(
+        eq(domainSources.trialId, trial.id),
+        eq(domainSources.domain, "DM"),
+        eq(domainSources.source, "EDC")
+      ));
+    
+    if (existingSource.length > 0) {
+      console.log(`Source information for trial ${trial.id}, domain DM, source EDC already exists`);
+    } else {
+      // Create source
+      const sourceInfo: InsertDomainSource = {
+        trialId: trial.id,
+        domain: "DM",
+        source: "EDC",
+        description: "Patient demographics data from EDC system",
+        sourceType: "EDC",
+        system: "EDC",
+        integrationMethod: "Manual",
+        format: "SDTM",
+        frequency: "Daily",
+        contact: "Data Management"
+      };
+      
+      await db.insert(domainSources).values(sourceInfo);
+      console.log(`Created source for trial ${trial.id}, domain DM, source EDC`);
+    }
+    
+    // Check for existing data
+    const existingData = await db.select()
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "DM"),
+        eq(domainData.source, "EDC")
+      ));
+    
+    if (existingData.length > 0) {
+      console.log(`DM data for trial ${trial.id} already exists (${existingData.length} records), skipping`);
+      continue;
+    }
+    
+    // Generate and insert data
+    const recordCount = 25; // Number of records to generate
+    
+    // Use domain-specific generator for DM domain
+    const generator = domainSpecificGenerators["DM"];
+    if (!generator) {
+      console.error(`No generator found for domain DM`);
+      continue;
+    }
+    
+    const importDate = new Date();
+    const recordsToInsert: InsertDomainData[] = [];
+    
+    for (let i = 0; i < recordCount; i++) {
+      // Generate a domain-specific record with appropriate study ID
+      const record = generator();
+      record.STUDYID = getStudyIdentifier(trial.id);
+      record.USUBJID = `S-${trial.id}-${String(i + 1).padStart(3, '0')}`;
+      
+      const domainDataRecord: InsertDomainData = {
+        trialId: trial.id,
+        domain: "DM",
+        source: "EDC",
+        recordId: `DM-${trial.id}-${i + 1}`,
+        recordData: JSON.stringify(record),
+        importedAt: importDate
+      };
+      
+      recordsToInsert.push(domainDataRecord);
+    }
+    
+    // Insert in batches to avoid potential issues with too many parameters
+    const batchSize = 50;
+    for (let i = 0; i < recordsToInsert.length; i += batchSize) {
+      const batch = recordsToInsert.slice(i, i + batchSize);
+      await db.insert(domainData).values(batch);
+    }
+    
+    // Update record count in domain_sources
+    // Since our schema doesn't include recordCount, we need to do a count query
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "DM"),
+        eq(domainData.source, "EDC")
+      ));
+    
+    console.log(`Added DM records for trial ${trial.id}. Count: ${countResult[0]?.count || 0}`);
+  }
+  
+  console.log("DM data initialization complete");
+}
+
+/**
+ * Initialize LB (Lab) domain data
+ */
+export async function initLBData() {
+  console.log("Initializing LB data...");
+  
+  // Get all trials
+  const allTrials = await db.select().from(trials);
+  console.log(`Found ${allTrials.length} trials, initializing LB data for each`);
+  
+  for (const trial of allTrials) {
+    // Check if source exists
+    const existingSource = await db.select()
+      .from(domainSources)
+      .where(and(
+        eq(domainSources.trialId, trial.id),
+        eq(domainSources.domain, "LB"),
+        eq(domainSources.source, "Central Laboratory")
+      ));
+    
+    if (existingSource.length > 0) {
+      console.log(`Source information for trial ${trial.id}, domain LB, source Central Laboratory already exists`);
+    } else {
+      // Create source
+      const sourceInfo: InsertDomainSource = {
+        trialId: trial.id,
+        domain: "LB",
+        source: "Central Laboratory",
+        description: "Laboratory test results from central lab",
+        sourceType: "Lab",
+        system: "Lab System",
+        integrationMethod: "API",
+        format: "SDTM",
+        frequency: "Daily",
+        contact: "Central Laboratory"
+      };
+      
+      await db.insert(domainSources).values(sourceInfo);
+      console.log(`Created source for trial ${trial.id}, domain LB, source Central Laboratory`);
+    }
+    
+    // Check for existing data
+    const existingData = await db.select()
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "LB"),
+        eq(domainData.source, "Central Laboratory")
+      ));
+    
+    if (existingData.length > 0) {
+      console.log(`LB data for trial ${trial.id} already exists (${existingData.length} records), skipping`);
+      continue;
+    }
+    
+    // Generate and insert data
+    const recordCount = 100; // More lab records than patient records
+    
+    // Use domain-specific generator for LB domain
+    const generator = domainSpecificGenerators["LB"];
+    if (!generator) {
+      console.error(`No generator found for domain LB`);
+      continue;
+    }
+    
+    const importDate = new Date();
+    const recordsToInsert: InsertDomainData[] = [];
+    
+    for (let i = 0; i < recordCount; i++) {
+      // Generate a domain-specific record with appropriate study ID
+      const record = generator();
+      record.STUDYID = getStudyIdentifier(trial.id);
+      record.USUBJID = `S-${trial.id}-${String(Math.floor(i/4) + 1).padStart(3, '0')}`;
+      
+      const domainDataRecord: InsertDomainData = {
+        trialId: trial.id,
+        domain: "LB",
+        source: "Central Laboratory",
+        recordId: `LB-${trial.id}-${i + 1}`,
+        recordData: JSON.stringify(record),
+        importedAt: importDate
+      };
+      
+      recordsToInsert.push(domainDataRecord);
+    }
+    
+    // Insert in batches to avoid potential issues with too many parameters
+    const batchSize = 50;
+    for (let i = 0; i < recordsToInsert.length; i += batchSize) {
+      const batch = recordsToInsert.slice(i, i + batchSize);
+      await db.insert(domainData).values(batch);
+    }
+    
+    // Count the inserted records
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "LB"),
+        eq(domainData.source, "Central Laboratory")
+      ));
+    
+    console.log(`Added LB records for trial ${trial.id}. Count: ${countResult[0]?.count || 0}`);
+  }
+  
+  console.log("LB data initialization complete");
+}
+
+/**
+ * Initialize SV (Subject Visit) domain data
+ */
+export async function initSVData() {
+  console.log("Initializing SV data...");
+  
+  // Get all trials
+  const allTrials = await db.select().from(trials);
+  console.log(`Found ${allTrials.length} trials, initializing SV data for each`);
+  
+  for (const trial of allTrials) {
+    // Check if source exists
+    const existingSource = await db.select()
+      .from(domainSources)
+      .where(and(
+        eq(domainSources.trialId, trial.id),
+        eq(domainSources.domain, "SV"),
+        eq(domainSources.source, "EDC")
+      ));
+    
+    if (existingSource.length > 0) {
+      console.log(`Source information for trial ${trial.id}, domain SV, source EDC already exists`);
+    } else {
+      // Create source
+      const sourceInfo: InsertDomainSource = {
+        trialId: trial.id,
+        domain: "SV",
+        source: "EDC",
+        description: "Subject visit data from EDC system",
+        sourceType: "EDC",
+        system: "EDC",
+        integrationMethod: "Manual",
+        format: "SDTM",
+        frequency: "Daily",
+        contact: "Clinical Operations"
+      };
+      
+      await db.insert(domainSources).values(sourceInfo);
+      console.log(`Created source for trial ${trial.id}, domain SV, source EDC`);
+    }
+    
+    // Check for existing data
+    const existingData = await db.select()
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "SV"),
+        eq(domainData.source, "EDC")
+      ));
+    
+    if (existingData.length > 0) {
+      console.log(`SV data for trial ${trial.id} already exists (${existingData.length} records), skipping`);
+      continue;
+    }
+    
+    // Generate and insert data
+    const recordCount = 75; // Multiple visits per patient
+    
+    // Use domain-specific generator for SV domain
+    const generator = domainSpecificGenerators["SV"];
+    if (!generator) {
+      console.error(`No generator found for domain SV`);
+      continue;
+    }
+    
+    const importDate = new Date();
+    const recordsToInsert: InsertDomainData[] = [];
+    
+    for (let i = 0; i < recordCount; i++) {
+      // Generate a domain-specific record with appropriate study ID
+      const record = generator();
+      record.STUDYID = getStudyIdentifier(trial.id);
+      record.USUBJID = `S-${trial.id}-${String(Math.floor(i/3) + 1).padStart(3, '0')}`;
+      
+      const domainDataRecord: InsertDomainData = {
+        trialId: trial.id,
+        domain: "SV",
+        source: "EDC",
+        recordId: `SV-${trial.id}-${i + 1}`,
+        recordData: JSON.stringify(record),
+        importedAt: importDate
+      };
+      
+      recordsToInsert.push(domainDataRecord);
+    }
+    
+    // Insert in batches to avoid potential issues with too many parameters
+    const batchSize = 50;
+    for (let i = 0; i < recordsToInsert.length; i += batchSize) {
+      const batch = recordsToInsert.slice(i, i + batchSize);
+      await db.insert(domainData).values(batch);
+    }
+    
+    // Count the inserted records
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "SV"),
+        eq(domainData.source, "EDC")
+      ));
+    
+    console.log(`Added SV records for trial ${trial.id}. Count: ${countResult[0]?.count || 0}`);
+  }
+  
+  console.log("SV data initialization complete");
+}
+
+/**
+ * Initialize TU (Tumor) domain data for imaging
+ */
+export async function initTUData() {
+  console.log("Initializing TU (Imaging) data...");
+  
+  // Get all trials
+  const allTrials = await db.select().from(trials);
+  console.log(`Found ${allTrials.length} trials, initializing TU data for each`);
+  
+  for (const trial of allTrials) {
+    // Check if source exists
+    const existingSource = await db.select()
+      .from(domainSources)
+      .where(and(
+        eq(domainSources.trialId, trial.id),
+        eq(domainSources.domain, "TU"),
+        eq(domainSources.source, "Imaging RECIST")
+      ));
+    
+    if (existingSource.length > 0) {
+      console.log(`Source information for trial ${trial.id}, domain TU, source Imaging RECIST already exists`);
+    } else {
+      // Create source
+      const sourceInfo: InsertDomainSource = {
+        trialId: trial.id,
+        domain: "TU",
+        source: "Imaging RECIST",
+        description: "Tumor assessment data from imaging system",
+        sourceType: "Imaging",
+        system: "Imaging System",
+        integrationMethod: "API",
+        format: "SDTM",
+        frequency: "Weekly",
+        contact: "Imaging Core Lab"
+      };
+      
+      await db.insert(domainSources).values(sourceInfo);
+      console.log(`Created source for trial ${trial.id}, domain TU, source Imaging RECIST`);
+    }
+    
+    // Check for existing data
+    const existingData = await db.select()
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "TU"),
+        eq(domainData.source, "Imaging RECIST")
+      ));
+    
+    if (existingData.length > 0) {
+      console.log(`TU data for trial ${trial.id} already exists (${existingData.length} records), skipping`);
+      continue;
+    }
+    
+    // Generate and insert data - since we don't have a TU generator yet, we'll create custom data
+    const recordCount = 40; // Fewer tumor assessments than lab tests typically
+    
+    const importDate = new Date();
+    const recordsToInsert: InsertDomainData[] = [];
+    
+    // Generate specimen-specific tumor records
+    const tumorTypes = ["Target Lesion", "Non-Target Lesion", "New Lesion"];
+    const tumorLocations = ["Lung", "Liver", "Lymph Node", "Brain", "Bone", "Kidney", "Adrenal"];
+    const assessmentMethods = ["CT", "MRI", "X-Ray", "PET", "Physical Exam"];
+    const tumorSites = ["Primary", "Metastatic"];
+    
+    for (let i = 0; i < recordCount; i++) {
+      const patientNum = Math.floor(i/2) + 1; // Each patient has multiple tumor records
+      const visitNum = Math.floor(Math.random() * 5) + 1;
+      const assessmentDate = new Date(Date.now() - Math.floor(Math.random() * 180) * 24 * 60 * 60 * 1000);
+      const tumorType = tumorTypes[Math.floor(Math.random() * tumorTypes.length)];
+      const location = tumorLocations[Math.floor(Math.random() * tumorLocations.length)];
+      const method = assessmentMethods[Math.floor(Math.random() * assessmentMethods.length)];
+      const diameter = Math.floor(Math.random() * 50) + 5; // 5-55mm
+      
+      const tuRecord = {
+        STUDYID: getStudyIdentifier(trial.id),
+        DOMAIN: "TU",
+        USUBJID: `S-${trial.id}-${String(patientNum).padStart(3, '0')}`,
+        TUSEQ: i + 1,
+        TUGRPID: `TU${String(patientNum).padStart(3, '0')}-${i + 1}`,
+        TUREFID: `${Math.floor(Math.random() * 1000) + 1000}`,
+        TULNKID: `VISIT-${visitNum}`,
+        TUTESTCD: "TUMIDENT",
+        TUTEST: "Tumor Identification",
+        TUORRES: `${location} ${tumorType}`,
+        TUSTRESC: `${location} ${tumorType}`,
+        TUNAM: `${location} ${tumorType} ${i + 1}`,
+        TULOC: location,
+        TUMETHOD: method,
+        TUCAT: tumorType,
+        TUDIAMETER: diameter,
+        TUDIAMUNIT: "mm",
+        TUDTC: assessmentDate.toISOString().split('T')[0],
+        TUDDY: Math.floor(Math.random() * 200) + 1,
+        VISITNUM: visitNum,
+        VISIT: `Visit ${visitNum}`,
+        TUSITE: tumorSites[Math.floor(Math.random() * tumorSites.length)],
+        TUEVAL: ["Investigator", "Independent Review", "Sponsor"][Math.floor(Math.random() * 3)],
+        TUACPTFL: ["Y", "N"][Math.floor(Math.random() * 2)]
+      };
+      
+      const domainDataRecord: InsertDomainData = {
+        trialId: trial.id,
+        domain: "TU",
+        source: "Imaging RECIST",
+        recordId: `TU-${trial.id}-${i + 1}`,
+        recordData: JSON.stringify(tuRecord),
+        importedAt: importDate
+      };
+      
+      recordsToInsert.push(domainDataRecord);
+    }
+    
+    // Insert in batches to avoid potential issues with too many parameters
+    const batchSize = 50;
+    for (let i = 0; i < recordsToInsert.length; i += batchSize) {
+      const batch = recordsToInsert.slice(i, i + batchSize);
+      await db.insert(domainData).values(batch);
+    }
+    
+    // Count the inserted records
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "TU"),
+        eq(domainData.source, "Imaging RECIST")
+      ));
+    
+    console.log(`Added TU records for trial ${trial.id}. Count: ${countResult[0]?.count || 0}`);
+  }
+  
+  console.log("TU data initialization complete");
+}
+
+/**
+ * Initialize CTMS Study domain data 
+ */
+export async function initCTMSStudyData() {
+  console.log("Initializing CTMS_STUDY data...");
+  
+  // Get all trials
+  const allTrials = await db.select().from(trials);
+  console.log(`Found ${allTrials.length} trials, initializing CTMS_STUDY data for each`);
+  
+  for (const trial of allTrials) {
+    // Check if source exists
+    const existingSource = await db.select()
+      .from(domainSources)
+      .where(and(
+        eq(domainSources.trialId, trial.id),
+        eq(domainSources.domain, "CTMS_STUDY"),
+        eq(domainSources.source, "CTMS Study")
+      ));
+    
+    if (existingSource.length > 0) {
+      console.log(`Source information for trial ${trial.id}, domain CTMS_STUDY, source CTMS Study already exists`);
+    } else {
+      // Create source
+      const sourceInfo: InsertDomainSource = {
+        trialId: trial.id,
+        domain: "CTMS_STUDY",
+        source: "CTMS Study",
+        description: "Clinical trial management system study data",
+        sourceType: "CTMS",
+        system: "CTMS",
+        integrationMethod: "API",
+        format: "Custom",
+        frequency: "Daily",
+        contact: "Clinical Operations"
+      };
+      
+      await db.insert(domainSources).values(sourceInfo);
+      console.log(`Created source for trial ${trial.id}, domain CTMS_STUDY, source CTMS Study`);
+    }
+    
+    // Check for existing data
+    const existingData = await db.select()
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "CTMS_STUDY"),
+        eq(domainData.source, "CTMS Study")
+      ));
+    
+    if (existingData.length > 0) {
+      console.log(`CTMS_STUDY data for trial ${trial.id} already exists (${existingData.length} records), skipping`);
+      continue;
+    }
+    
+    // Use the CTMS_STUDY generator if available
+    const generator = domainSpecificGenerators["CTMS_STUDY"];
+    if (!generator) {
+      console.error(`No generator found for domain CTMS_STUDY`);
+      continue;
+    }
+    
+    // Generate CTMS study record - usually one per trial
+    const ctmsStudyRecord = generator();
+    ctmsStudyRecord.STUDYID = getStudyIdentifier(trial.id);
+    
+    // Add more trial-specific info
+    if (trial.id === 1) {
+      ctmsStudyRecord.TITLE = "Diabetes Type 2 Long Term Outcomes Study";
+      ctmsStudyRecord.PHASE = "III";
+      ctmsStudyRecord.INDICATION = "Type 2 Diabetes";
+    } else if (trial.id === 2) {
+      ctmsStudyRecord.TITLE = "Hypertension Combination Therapy Study";
+      ctmsStudyRecord.PHASE = "II";
+      ctmsStudyRecord.INDICATION = "Hypertension";
+    } else if (trial.id === 3) {
+      ctmsStudyRecord.TITLE = "Oncology Biomarker Trial";
+      ctmsStudyRecord.PHASE = "I/II";
+      ctmsStudyRecord.INDICATION = "Solid Tumors";
+    }
+    
+    const importDate = new Date();
+    const domainDataRecord: InsertDomainData = {
+      trialId: trial.id,
+      domain: "CTMS_STUDY",
+      source: "CTMS Study",
+      recordId: `CTMS-STUDY-${trial.id}`,
+      recordData: JSON.stringify(ctmsStudyRecord),
+      importedAt: importDate
+    };
+    
+    await db.insert(domainData).values(domainDataRecord);
+    
+    console.log(`Added CTMS_STUDY record for trial ${trial.id}`);
+  }
+  
+  console.log("CTMS_STUDY data initialization complete");
+}
+
+/**
+ * Initialize AE (Adverse Events) domain data
+ */
+export async function initAEData() {
+  console.log("Initializing AE data...");
+  
+  // Get all trials
+  const allTrials = await db.select().from(trials);
+  console.log(`Found ${allTrials.length} trials, initializing AE data for each`);
+  
+  for (const trial of allTrials) {
+    // Check if source exists
+    const existingSource = await db.select()
+      .from(domainSources)
+      .where(and(
+        eq(domainSources.trialId, trial.id),
+        eq(domainSources.domain, "AE"),
+        eq(domainSources.source, "EDC Safety")
+      ));
+    
+    if (existingSource.length > 0) {
+      console.log(`Source information for trial ${trial.id}, domain AE, source EDC Safety already exists`);
+    } else {
+      // Create source
+      const sourceInfo: InsertDomainSource = {
+        trialId: trial.id,
+        domain: "AE",
+        source: "EDC Safety",
+        description: "Adverse events from EDC safety module",
+        sourceType: "EDC",
+        system: "EDC",
+        integrationMethod: "Manual",
+        format: "SDTM",
+        frequency: "Daily",
+        contact: "Safety"
+      };
+      
+      await db.insert(domainSources).values(sourceInfo);
+      console.log(`Created source for trial ${trial.id}, domain AE, source EDC Safety`);
+    }
+    
+    // Check for existing data
+    const existingData = await db.select()
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "AE"),
+        eq(domainData.source, "EDC Safety")
+      ));
+    
+    if (existingData.length > 0) {
+      console.log(`AE data for trial ${trial.id} already exists (${existingData.length} records), skipping`);
+      continue;
+    }
+    
+    // Generate and insert data
+    const recordCount = 60; // Multiple AEs per trial
+    
+    // Use domain-specific generator for AE domain
+    const generator = domainSpecificGenerators["AE"];
+    if (!generator) {
+      console.error(`No generator found for domain AE`);
+      continue;
+    }
+    
+    const importDate = new Date();
+    const recordsToInsert: InsertDomainData[] = [];
+    
+    for (let i = 0; i < recordCount; i++) {
+      // Generate a domain-specific record with appropriate study ID
+      const record = generator();
+      record.STUDYID = getStudyIdentifier(trial.id);
+      record.USUBJID = `S-${trial.id}-${String(Math.floor(Math.random() * 25) + 1).padStart(3, '0')}`;
+      
+      const domainDataRecord: InsertDomainData = {
+        trialId: trial.id,
+        domain: "AE",
+        source: "EDC Safety",
+        recordId: `AE-${trial.id}-${i + 1}`,
+        recordData: JSON.stringify(record),
+        importedAt: importDate
+      };
+      
+      recordsToInsert.push(domainDataRecord);
+    }
+    
+    // Insert in batches to avoid potential issues with too many parameters
+    const batchSize = 50;
+    for (let i = 0; i < recordsToInsert.length; i += batchSize) {
+      const batch = recordsToInsert.slice(i, i + batchSize);
+      await db.insert(domainData).values(batch);
+    }
+    
+    // Count the inserted records
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(domainData)
+      .where(and(
+        eq(domainData.trialId, trial.id),
+        eq(domainData.domain, "AE"),
+        eq(domainData.source, "EDC Safety")
+      ));
+    
+    console.log(`Added AE records for trial ${trial.id}. Count: ${countResult[0]?.count || 0}`);
+  }
+  
+  console.log("AE data initialization complete");
+}
+
+/**
+ * Initialize all domain data
+ */
+export async function initAllDomainData() {
+  try {
+    // Initialize domain data in parallel for faster loading
+    await Promise.all([
+      initDMData(),
+      initLBData(),
+      initSVData(),
+      initTUData(),
+      initCTMSStudyData(),
+      initAEData()
+    ]);
+    console.log("All domain data initialization complete");
+  } catch (error) {
+    console.error("Error initializing domain data:", error);
+  }
+}
